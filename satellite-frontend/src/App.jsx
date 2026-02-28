@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import Preloader from "./components/Preloader";
 import Login from "./components/Login";
-import HomePage from "./components/HomePage";
+import LandingPage from "./components/LandingPage";
+// LandingNavbar-ah inga irundhu thookittu LandingPage kulla mattum maintain pannuvom
 import Dashboard from "./components/Dashboard";
 import Navbar from "./components/Navbar";
 
@@ -9,7 +10,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem("access_token"));
   const [activeTab, setActiveTab] = useState("Home");
-  const [loginRole, setLoginRole] = useState(null); // 'admin' or 'user'
+  const [showLogin, setShowLogin] = useState(false);
 
   const logout = () => {
     localStorage.removeItem("access_token");
@@ -19,21 +20,25 @@ function App() {
     localStorage.removeItem("name");
     setToken(null);
     setActiveTab("Home");
-    setLoginRole(null);
+    setShowLogin(false);
   };
 
   const handleLoadingFinished = () => {
     setLoading(false);
   };
 
-  const handleNavigateLogin = (role) => {
-    setLoginRole(role);
-  };
-
   const handleLoginSuccess = (newToken) => {
     setToken(newToken);
-    setLoginRole(null);
+    setShowLogin(false);
     setActiveTab("Home");
+  };
+
+  const handleEnterMission = () => {
+    if (token) {
+      setActiveTab("Home");
+    } else {
+      setShowLogin(true);
+    }
   };
 
   // Token persistence on refresh
@@ -62,24 +67,22 @@ function App() {
       {loading ? (
         <Preloader onFinished={handleLoadingFinished} />
       ) : !token ? (
-        loginRole ? (
-          /* Show Login form for specific role */
+        showLogin ? (
           <Login
-            role={loginRole}
+            role="user"
             setToken={handleLoginSuccess}
-            onBack={() => setLoginRole(null)}
+            onBack={() => setShowLogin(false)}
           />
         ) : (
-          /* Show Home page with Admin/User login buttons */
-          <div className="flex-1 overflow-hidden">
-            <HomePage
-              onNavigateLogin={handleNavigateLogin}
-              isLoggedIn={false}
+          /* FIXED: LandingNavbar-ah LandingPage props vazhiya control pannuvom */
+          <div className="flex-1 overflow-hidden relative">
+            <LandingPage
+              onEnterMission={handleEnterMission}
+              onLoginClick={() => setShowLogin(true)}
             />
           </div>
         )
       ) : (
-        /* Authenticated: Show Navbar + Dashboard */
         <>
           <Navbar
             activeTab={activeTab}

@@ -9,7 +9,6 @@ import {
   Lock,
   Mail,
   ArrowLeft,
-  ShieldAlert,
 } from "lucide-react";
 
 const Login = ({ setToken, role = "user", onBack }) => {
@@ -17,8 +16,6 @@ const Login = ({ setToken, role = "user", onBack }) => {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
-
-  const isAdmin = role === "admin";
 
   const handleAuthorize = async (e) => {
     e.preventDefault();
@@ -38,10 +35,15 @@ const Login = ({ setToken, role = "user", onBack }) => {
         setIsRegistering(false);
       } else {
         if (response.data.access_token) {
-          // Store all auth data
           localStorage.setItem("access_token", response.data.access_token);
-          localStorage.setItem("refresh_token", response.data.refresh_token || "");
-          localStorage.setItem("username", response.data.username || "COMMANDER");
+          localStorage.setItem(
+            "refresh_token",
+            response.data.refresh_token || "",
+          );
+          localStorage.setItem(
+            "username",
+            response.data.username || "COMMANDER",
+          );
           localStorage.setItem("role", response.data.role || "user");
           localStorage.setItem("name", response.data.name || "Commander");
 
@@ -63,28 +65,23 @@ const Login = ({ setToken, role = "user", onBack }) => {
     setName("");
   };
 
-  const accentColor = isAdmin ? "red" : "cyan";
-  const accentHex = isAdmin ? "#ef4444" : "#06b6d4";
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#020617] relative overflow-hidden font-mono">
-      <div className="absolute opacity-10 animate-[spin_100s_linear_infinite]">
+      {/* 1. Palaiya Globe Animation Restore Panniyachu */}
+      <div className="absolute opacity-10 animate-[spin_100s_linear_infinite] pointer-events-none">
         <Globe
-          className="w-[900px] h-[900px]"
-          style={{ color: accentHex }}
+          className="w-[900px] h-[900px] text-cyan-500"
           strokeWidth={0.5}
         />
       </div>
 
-      <div className={`absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-[150px] ${isAdmin ? "bg-red-600/10" : "bg-blue-600/10"}`} />
-      <div className={`absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full blur-[150px] ${isAdmin ? "bg-orange-600/10" : "bg-cyan-600/10"}`} />
+      {/* 2. Ambient Glow Effects */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-[150px]"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-600/10 rounded-full blur-[150px]"></div>
 
-      <div className={`relative z-10 w-full max-w-md p-10 rounded-[2.5rem] border bg-slate-900/40 backdrop-blur-2xl ${
-        isAdmin
-          ? "border-red-500/20 shadow-[0_0_80px_rgba(239,68,68,0.15)]"
-          : "border-cyan-500/20 shadow-[0_0_80px_rgba(6,182,212,0.15)]"
-      }`}>
-        {/* Back button */}
+      {/* Login Card */}
+      <div className="relative z-10 w-full max-w-md p-10 rounded-[3.5rem] border border-cyan-500/20 bg-slate-900/40 backdrop-blur-4xl shadow-[0_0_80px_rgba(6,182,212,0.15)]">
+        {/* Back button (Keeping New Feature in Old UI) */}
         {onBack && (
           <button
             onClick={onBack}
@@ -96,109 +93,79 @@ const Login = ({ setToken, role = "user", onBack }) => {
 
         <div className="flex flex-col items-center mb-10">
           <div className="relative">
-            <div className={`absolute -inset-4 border-t-2 border-b-2 border-dashed rounded-full animate-[spin_8s_linear_infinite] ${
-              isAdmin ? "border-red-400/40" : "border-cyan-400/40"
-            }`} />
-            <div className={`relative p-5 rounded-full border ${
-              isAdmin
-                ? "bg-gradient-to-b from-red-500/20 to-transparent border-red-400/30"
-                : "bg-gradient-to-b from-cyan-500/20 to-transparent border-cyan-400/30"
-            }`}>
-              {isAdmin ? (
-                <ShieldAlert className="w-12 h-12 text-red-400 animate-pulse" />
-              ) : (
-                <Cpu className="w-12 h-12 text-cyan-400 animate-pulse" />
-              )}
+            <div className="absolute -inset-4 border-t-2 border-b-2 border-dashed border-cyan-400/40 rounded-full animate-[spin_8s_linear_infinite]"></div>
+            <div className="relative p-5 rounded-full bg-gradient-to-b from-cyan-500/20 to-transparent border border-cyan-400/30">
+              {/* Cpu Icon from Old UI */}
+              <Cpu className="w-12 h-12 text-cyan-400 animate-pulse" />
             </div>
           </div>
-          <h1 className="mt-8 text-3xl font-black text-white tracking-[0.4em] text-center">
+          <h1 className="mt-8 text-3xl font-black text-white tracking-[0.4em] text-center uppercase">
             {isRegistering ? "ENROLLMENT" : "SPACETUG"}
           </h1>
           <div className="flex items-center gap-2 mt-2">
-            <span className={`h-[1px] w-8 ${isAdmin ? "bg-red-500/30" : "bg-cyan-500/30"}`} />
-            <p className={`text-[9px] tracking-[0.3em] uppercase font-bold ${
-              isAdmin ? "text-red-500/60" : "text-cyan-500/60"
-            }`}>
-              {isRegistering
-                ? `New ${isAdmin ? "Admin" : "User"} Registration`
-                : isAdmin
-                  ? "Admin Authorization"
-                  : "Mission Control Access"}
+            <span className="h-[1px] w-8 bg-cyan-500/30"></span>
+            <p className="text-[9px] text-cyan-500/60 tracking-[0.3em] uppercase font-bold">
+              {isRegistering ? "New Mission Access" : "Mission Control Access"}
             </p>
-            <span className={`h-[1px] w-8 ${isAdmin ? "bg-red-500/30" : "bg-cyan-500/30"}`} />
+            <span className="h-[1px] w-8 bg-cyan-500/30"></span>
           </div>
         </div>
 
-        <form onSubmit={handleAuthorize} className="space-y-6" autoComplete="off">
-          <input type="text" name="email" style={{ display: "none" }} tabIndex="-1" />
-          <input type="password" name="password" style={{ display: "none" }} tabIndex="-1" />
-
+        <form
+          onSubmit={handleAuthorize}
+          className="space-y-6"
+          autoComplete="off"
+        >
           {isRegistering && (
             <div className="space-y-2">
-              <label className={`text-[10px] font-bold tracking-widest uppercase ml-1 ${
-                isAdmin ? "text-red-400" : "text-cyan-400"
-              }`}>
+              <label className="text-cyan-400 text-[10px] font-bold tracking-widest uppercase ml-1">
                 Personnel Name
               </label>
               <div className="relative flex items-center">
-                <User className={`absolute left-4 w-5 h-5 ${isAdmin ? "text-red-400/50" : "text-cyan-400/50"}`} />
+                <User className="absolute left-4 w-5 h-5 text-cyan-400/50" />
                 <input
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="FULL NAME..."
-                  className={`w-full bg-black/50 border rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-slate-700 focus:outline-none transition-all text-sm ${
-                    isAdmin ? "border-red-500/20 focus:border-red-400" : "border-cyan-500/20 focus:border-cyan-400"
-                  }`}
+                  className="w-full bg-black/50 border border-cyan-500/20 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-slate-700 focus:outline-none focus:border-cyan-400 transition-all text-sm"
                 />
               </div>
             </div>
           )}
 
           <div className="space-y-2">
-            <div className="flex justify-between items-center px-1">
-              <label className={`text-[10px] font-bold tracking-widest uppercase flex items-center gap-2 ${
-                isAdmin ? "text-red-400" : "text-cyan-400"
-              }`}>
-                <span className={`w-1.5 h-1.5 rounded-full animate-ping ${isAdmin ? "bg-red-500" : "bg-cyan-500"}`} />
-                Personnel Identity
-              </label>
-            </div>
+            <label className="text-cyan-400 text-[10px] font-bold tracking-widest uppercase ml-1 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-ping"></span>
+              Personnel Identity
+            </label>
             <div className="relative flex items-center">
-              <Mail className={`absolute left-4 w-5 h-5 ${isAdmin ? "text-red-400/50" : "text-cyan-400/50"}`} />
+              <Mail className="absolute left-4 w-5 h-5 text-cyan-400/50" />
               <input
                 type="text"
                 required
-                autoComplete="new-off"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="ID CODE / EMAIL..."
-                className={`w-full bg-black/50 border rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-slate-700 focus:outline-none transition-all text-sm ${
-                  isAdmin ? "border-red-500/20 focus:border-red-400" : "border-cyan-500/20 focus:border-cyan-400"
-                }`}
+                className="w-full bg-black/50 border border-cyan-500/20 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-slate-700 focus:outline-none focus:border-cyan-400 transition-all text-sm"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className={`text-[10px] font-bold tracking-widest uppercase ml-1 ${
-              isAdmin ? "text-red-400" : "text-cyan-400"
-            }`}>
+            <label className="text-cyan-400 text-[10px] font-bold tracking-widest uppercase ml-1">
               Orbital Clearance
             </label>
             <div className="relative flex items-center">
-              <Lock className={`absolute left-4 w-5 h-5 ${isAdmin ? "text-red-400/50" : "text-cyan-400/50"}`} />
+              <Lock className="absolute left-4 w-5 h-5 text-cyan-400/50" />
               <input
                 type="password"
                 required
-                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="ENTER ACCESS KEY..."
-                className={`w-full bg-black/50 border rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-slate-700 focus:outline-none transition-all text-sm ${
-                  isAdmin ? "border-red-500/20 focus:border-red-400" : "border-cyan-500/20 focus:border-cyan-400"
-                }`}
+                className="w-full bg-black/50 border border-cyan-500/20 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-slate-700 focus:outline-none focus:border-cyan-400 transition-all text-sm"
               />
             </div>
           </div>
@@ -206,15 +173,11 @@ const Login = ({ setToken, role = "user", onBack }) => {
           <div className="flex gap-4 pt-2">
             <button
               type="submit"
-              className={`flex-1 h-14 border font-black rounded-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-95 group ${
-                isAdmin
-                  ? "bg-red-500/10 hover:bg-red-500/20 border-red-400 text-red-400 shadow-[0_0_20px_rgba(239,68,68,0.1)]"
-                  : "bg-cyan-500/10 hover:bg-cyan-500/20 border-cyan-400 text-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.1)]"
-              }`}
+              className="flex-1 h-14 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-400 text-cyan-400 font-black rounded-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(6,182,212,0.1)] group"
             >
               <Rocket className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
               <span className="tracking-[0.1em]">
-                {isRegistering ? "ENROLL" : "AUTHORIZE"}
+                {isRegistering ? "ENROLL MISSION" : "AUTHORIZE MISSION"}
               </span>
             </button>
             <button
@@ -230,11 +193,9 @@ const Login = ({ setToken, role = "user", onBack }) => {
         <div className="mt-6 text-center">
           <button
             onClick={() => setIsRegistering(!isRegistering)}
-            className={`text-[10px] hover:text-white transition-colors uppercase tracking-widest font-bold underline underline-offset-4 ${
-              isAdmin ? "text-red-500/60 decoration-red-500/20" : "text-cyan-500/60 decoration-cyan-500/20"
-            }`}
+            className="text-[10px] text-cyan-500/60 hover:text-cyan-400 transition-colors uppercase tracking-widest font-bold underline decoration-cyan-500/20 underline-offset-4"
           >
-            {isRegistering ? "Already Enrolled? Login Here" : "Enroll for Mission"}
+            {isRegistering ? "Return to Login" : "Enroll for Mission"}
           </button>
         </div>
 
@@ -244,8 +205,8 @@ const Login = ({ setToken, role = "user", onBack }) => {
             <span className="text-cyan-800">|</span>
             <span>ENC: AES-256</span>
           </div>
-          <span className={`animate-pulse uppercase ${isAdmin ? "text-red-500" : "text-cyan-500"}`}>
-            {isAdmin ? "● ADMIN LINK" : "● LINK STATUS: CONNECTED"}
+          <span className="animate-pulse uppercase text-cyan-500">
+            ● Link Status: Connected
           </span>
         </div>
       </div>

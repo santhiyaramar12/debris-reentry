@@ -20,7 +20,7 @@ def import_data():
 
     # 3. JSON-ah read panni ulla thallurom
     try:
-        with open('debris_satellites.json', 'r') as f:
+        with open('mission_satellite_fixed', 'r') as f:
             data = json.load(f)
             
             # Key check: 'satellites' kulla dhaan unga list irukku

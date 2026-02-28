@@ -2,8 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Unga custom styles (glow, background etc.) ellam idhuku appuram veiyunga */
+/* ── Global ── */
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   background-color: #060b13;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code, .font-mono {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+/* ── Custom scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(6, 11, 19, 0.8);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(6, 182, 212, 0.15);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(6, 182, 212, 0.35);
+}
+
+/* ── Selection ── */
+::selection {
+  background: rgba(6, 182, 212, 0.25);
+  color: #e2e8f0;
 }
