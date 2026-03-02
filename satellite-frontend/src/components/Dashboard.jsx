@@ -134,9 +134,9 @@ const Dashboard = ({ activeTab, setActiveTab, setToken, logout }) => {
           "LOW"
         ).toUpperCase();
 
-        // STRICT 120KM THRESHOLD
+        // STRICT 150KM THRESHOLD
         const isActuallyCritical =
-          riskFromBackend === "CRITICAL" || altitudeVal < 120;
+          riskFromBackend === "CRITICAL" || altitudeVal < 150;
 
         const processedAsset = {
           ...item,
@@ -251,7 +251,7 @@ const Dashboard = ({ activeTab, setActiveTab, setToken, logout }) => {
                   {alerts.map((item, idx) => {
                     const alt = Number(item.altitude || 0);
                     const isCrit =
-                      alt < 120 || item.alert_level === "RE-ENTRY IMMINENT";
+                      alt < 150 || item.alert_level === "RE-ENTRY IMMINENT";
                     return (
                       <div
                         key={idx}

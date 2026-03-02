@@ -38,10 +38,10 @@ class ReentryPredictor:
         
         print(f"DEBUG: Name: {self.name} | Calculated Alt: {current_alt}")
         
-        # Risk Logic (Unga strict 120km rule - NO CHANGE)
-        if current_alt < 120:
+        # Risk Logic (Unga strict 150km rule - NO CHANGE)
+        if current_alt < 150:
             risk = "CRITICAL"
-        elif 120 <= current_alt <= 250:
+        elif 150 <= current_alt <= 250:
             risk = "MEDIUM"
         else:
             risk = "LOW"
