@@ -1,37 +1,35 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Rocket,
   Home,
-  Target,
   AlertTriangle,
-  FileText,
+  Target,
   Satellite,
-  ShieldCheck,
-  Zap,
+  Cloud,
   Activity,
   User,
+  LogOut,
 } from "lucide-react";
 
 const Navbar = ({ activeTab, setActiveTab, onLogout }) => {
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const role = localStorage.getItem("role") || "user";
-  const username = localStorage.getItem("username") || "COMMANDER";
+  const displayName = localStorage.getItem("name") || "Commander";
   const isAdmin = role === "admin" || role === "supervisor";
 
+  // Exactly 5 tabs — no admin tab in nav
   const navItems = [
-    { id: "Home", icon: Home, label: "Home", roles: ["user", "admin", "supervisor"] },
-    { id: "Missions", icon: Target, label: "Missions", roles: ["user", "admin", "supervisor"] },
-    { id: "Alerts", icon: AlertTriangle, label: "Alerts", roles: ["user", "admin", "supervisor"] },
-    { id: "Reports", icon: FileText, label: "Reports", roles: ["user", "admin", "supervisor"] },
-    { id: "Satellites", icon: Satellite, label: "Satellites", roles: ["user", "admin", "supervisor"] },
-    { id: "Admin", icon: ShieldCheck, label: "Admin Panel", roles: ["admin", "supervisor"] },
+    { id: "Home", icon: Home, label: "Mission Hub" },
+    { id: "Alerts", icon: AlertTriangle, label: "Crisis Alerts" },
+    { id: "Missions", icon: Target, label: "Decay Forecast" },
+    { id: "Satellites", icon: Satellite, label: "Orbital Globe" },
+    { id: "Environment", icon: Cloud, label: "Environment" },
   ];
 
-  const visibleItems = navItems.filter((item) => item.roles.includes(role));
-
   return (
-    <nav className="border-b border-white/10 bg-black/60 backdrop-blur-2xl px-4 py-3 flex justify-between items-center z-50 shadow-2xl">
-      <div className="flex items-center gap-6">
-        {/* Logo */}
+    <nav className="border-b border-white/10 bg-black/70 backdrop-blur-2xl px-5 py-2.5 flex justify-between items-center z-50 shadow-2xl relative">
+      {/* LEFT: Logo + Nav Tabs */}
+      <div className="flex items-center gap-5">
         <div
           className="flex items-center gap-2.5 px-2 group cursor-pointer"
           onClick={() => setActiveTab("Home")}
@@ -39,83 +37,99 @@ const Navbar = ({ activeTab, setActiveTab, onLogout }) => {
           <div className="bg-gradient-to-br from-orange-500 to-red-600 p-1.5 rounded-lg shadow-lg shadow-orange-600/20 group-hover:scale-110 transition-transform">
             <Rocket className="text-white fill-white" size={16} />
           </div>
-          <h1 className="text-white font-black tracking-[0.2em] text-base uppercase italic">
+          <h1 className="text-white font-black tracking-[0.15em] text-sm uppercase" style={{ fontFamily: 'var(--font-display)' }}>
             SPACETUG
           </h1>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10">
-          {visibleItems.map((item) => {
+        <div className="flex items-center gap-0.5 bg-white/5 p-1 rounded-xl border border-white/10">
+          {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
-            const isAdminTab = item.id === "Admin";
-
             return (
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`px-3 py-2 rounded-lg transition-all text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 ${
+                className={`relative px-3.5 py-2 rounded-lg transition-all text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 ${
                   isActive
-                    ? isAdminTab
-                      ? "bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)]"
-                      : "bg-cyan-500 text-black shadow-[0_0_20px_rgba(6,182,212,0.4)]"
-                    : isAdminTab
-                      ? "text-red-400/60 hover:text-red-400 hover:bg-red-500/10"
-                      : "text-slate-400 hover:text-white hover:bg-white/5"
+                    ? "bg-cyan-500/15 text-cyan-400 nav-active-glow"
+                    : "text-slate-400 hover:text-white hover:bg-white/5"
                 }`}
               >
-                <Icon size={12} />
-                {item.label}
+                <Icon size={13} />
+                <span className="hidden lg:inline">{item.label}</span>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Right side - User info & Logout */}
-      <div className="flex items-center gap-4">
-        <div className="hidden md:flex items-center gap-3 pr-4 border-r border-white/10">
+      {/* RIGHT: User Info + Profile */}
+      <div className="flex items-center gap-3">
+        <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-green-500/10 border border-green-500/20 rounded-full">
+          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_6px_rgba(34,197,94,0.5)]" />
+          <span className="text-[8px] font-black text-green-400 uppercase tracking-widest">Live</span>
+        </div>
+
+        <div className="hidden md:flex items-center gap-2.5 pr-3 border-r border-white/10">
           <div className="text-right">
-            <p className="text-[10px] font-black text-white uppercase tracking-tight">
-              {username}
+            <p className="text-[10px] font-black text-white uppercase tracking-tight leading-tight">
+              {displayName}
             </p>
-            <p className="text-[8px] text-cyan-500 font-bold uppercase tracking-widest opacity-80 flex items-center justify-end gap-1">
-              <Activity size={8} />
+            <p className="text-[8px] text-cyan-500/70 font-bold uppercase tracking-widest flex items-center justify-end gap-1">
+              <Activity size={7} />
               {isAdmin ? "Mission Supervisor" : "Mission Control"}
             </p>
           </div>
-          <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center border ${
-              isAdmin
-                ? "bg-red-500/10 border-red-500/20"
-                : "bg-cyan-500/10 border-cyan-500/20"
-            }`}
-          >
-            <User size={16} className={isAdmin ? "text-red-400" : "text-cyan-500"} />
-          </div>
         </div>
 
-        {isAdmin && (
-          <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 border border-red-500/20 rounded-lg">
-            <ShieldCheck size={12} className="text-red-400" />
-            <span className="text-[8px] font-black text-red-400 uppercase tracking-widest">
-              Admin
-            </span>
-          </div>
-        )}
+        {/* Profile Button */}
+        <div className="relative">
+          <button
+            onClick={() => setShowProfileMenu(!showProfileMenu)}
+            className={`w-9 h-9 rounded-full flex items-center justify-center border transition-all cursor-pointer ${
+              activeTab === "Profile"
+                ? "bg-cyan-500/20 border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.3)]"
+                : "bg-cyan-500/10 border-cyan-500/20 hover:bg-cyan-500/20"
+            }`}
+          >
+            <User size={16} className="text-cyan-400" />
+          </button>
 
-        <button
-          onClick={onLogout}
-          className="group bg-red-500/10 hover:bg-red-500 p-2.5 rounded-xl transition-all border border-red-500/20"
-          title="Logout"
-        >
-          <Zap
-            size={16}
-            className="text-red-500 group-hover:text-white transition-colors"
-          />
-        </button>
+          {showProfileMenu && (
+            <div className="absolute top-12 right-0 w-48 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[100] animate-in">
+              <button
+                onClick={() => {
+                  setActiveTab("Profile");
+                  setShowProfileMenu(false);
+                }}
+                className="w-full px-4 py-3 text-left text-[10px] font-bold text-slate-300 uppercase tracking-widest hover:bg-white/5 flex items-center gap-2 transition-colors"
+              >
+                <User size={13} className="text-cyan-400" />
+                View Profile
+              </button>
+              <div className="border-t border-white/5" />
+              <button
+                onClick={() => {
+                  onLogout();
+                  setShowProfileMenu(false);
+                }}
+                className="w-full px-4 py-3 text-left text-[10px] font-bold text-red-400 uppercase tracking-widest hover:bg-red-500/10 flex items-center gap-2 transition-colors"
+              >
+                <LogOut size={13} />
+                Logout
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+
+      {showProfileMenu && (
+        <div
+          className="fixed inset-0 z-[90]"
+          onClick={() => setShowProfileMenu(false)}
+        />
+      )}
     </nav>
   );
 };

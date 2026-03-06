@@ -9,13 +9,17 @@ import {
   BarChart3,
   Cpu,
 } from "lucide-react";
+import LeafletMap from "./LeafletMap";
 
 const SatelliteAnalysis = ({ asset, onBack }) => {
   const [liveCoords, setLiveCoords] = useState({ lat: 0, lng: 0 });
   const [tick, setTick] = useState(0);
   const timerRef = useRef(null);
 
-  // Track points-ai veliya eduthu length check panna vasadhiya vachukuvom
+  // 🌍 Testing URL - LeafletMap-kulla direct-aa pass panna porom
+  const testMapUrl =
+    "https://upload.wikimedia.org/wikipedia/commons/8/83/Equirectangular_projection_SW.jpg";
+
   const groundTrackPoints =
     asset?.map_data?.ground_track || asset?.ground_track || [];
 
@@ -24,9 +28,6 @@ const SatelliteAnalysis = ({ asset, onBack }) => {
 
     if (groundTrackPoints.length > 0) {
       let index = 0;
-
-      // SPEED LOGIC: Points kammiya irundha interval-ai adhigamaaki (5s),
-      // points adhigama irundha normal interval (2s) vachukura maari dynamic-aa mathiruken.
       const dynamicInterval = groundTrackPoints.length <= 40 ? 8000 : 3000;
 
       timerRef.current = setInterval(() => {
@@ -45,7 +46,7 @@ const SatelliteAnalysis = ({ asset, onBack }) => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [asset, groundTrackPoints.length]); // Track length maarumbodhu timer refresh aagum
+  }, [asset, groundTrackPoints.length]);
 
   if (!asset)
     return (
@@ -63,15 +64,8 @@ const SatelliteAnalysis = ({ asset, onBack }) => {
     asset.analysis_results?.current_altitude ||
     asset.metadata?.altitude ||
     asset.altitude;
-  
-  const altitude = Number(
-    asset?.analysis_results?.current_altitude ??
-      asset?.metadata?.altitude ??
-      asset?.altitude ??
-      0,
-  );
+  const altitude = Number(currentAltitude ?? 0);
 
-  // Corrected Thresholds:
   const isCritical = altitude < 150;
   const isMedium = altitude >= 150 && altitude <= 250;
 
@@ -82,13 +76,10 @@ const SatelliteAnalysis = ({ asset, onBack }) => {
   const getPredictorMessage = () => {
     if (asset.analysis && typeof asset.analysis === "string")
       return asset.analysis;
-
     if (isCritical)
       return "CRITICAL: DECAY ACCELERATING. IMPACT TRAJECTORY CALCULATED.";
-
     if (isMedium)
       return "CAUTION: ORBITAL DECAY OBSERVED. CLOSE MONITORING ADVISED.";
-
     return "STABLE: TELEMETRY NOMINAL. SGP4 PROPAGATION IN SYNC.";
   };
 
@@ -133,85 +124,20 @@ const SatelliteAnalysis = ({ asset, onBack }) => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 overflow-hidden px-2 pb-1">
         <div className="lg:col-span-2 flex flex-col gap-3 min-h-0">
           <div className="flex-1 relative bg-black rounded-[1.5rem] border border-white/10 overflow-hidden shadow-2xl group">
-            <div
-              className="absolute inset-0 opacity-40 grayscale group-hover:grayscale-0 transition-all duration-1000"
-              style={{
-                backgroundImage: `url('https://upload.wikimedia.org/wikipedia/commons/8/83/Equirectangular_projection_SW.jpg')`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }}
-            />
+            {/* 🗺️ THE FIX: Leaflet Map with URL passed as prop */}
+            <div className="absolute inset-0 z-10">
+              <LeafletMap
+                key={asset.norad_id}
+                asset={asset}
+                showPath={true}
+                liveCoords={liveCoords}
+                customMapUrl={testMapUrl}
+              />
+            </div>
 
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-500/5 to-transparent h-20 w-full animate-[scan_4s_linear_infinite] pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-500/5 to-transparent h-20 w-full animate-[scan_4s_linear_infinite] pointer-events-none z-20" />
 
-            <svg
-              key={tick}
-              viewBox="0 0 360 180"
-              className="w-full h-full relative z-10 p-2"
-            >
-              {/* Static Grid */}
-              {[...Array(12)].map((_, i) => (
-                <line
-                  key={`v-${i}`}
-                  x1={i * 30}
-                  y1="0"
-                  x2={i * 30}
-                  y2="180"
-                  stroke="white"
-                  strokeWidth="0.1"
-                  opacity="0.2"
-                />
-              ))}
-              {[...Array(6)].map((_, i) => (
-                <line
-                  key={`h-${i}`}
-                  x1="0"
-                  y1={i * 30}
-                  x2="360"
-                  y2={i * 30}
-                  stroke="white"
-                  strokeWidth="0.1"
-                  opacity="0.2"
-                />
-              ))}
-
-              {/* Impact Path */}
-              {groundTrackPoints.length > 0 && (
-                <polyline
-                  fill="none"
-                  stroke={riskColor}
-                  strokeWidth="1.2"
-                  strokeDasharray="4 2"
-                  points={groundTrackPoints
-                    .map((p) => `${Number(p[1]) + 180},${90 - Number(p[0])}`)
-                    .join(" ")}
-                />
-              )}
-
-              {/* Live Moving Marker */}
-              <g
-                style={{
-                  // TRANSITION FIX: Dynamic Interval-ku etha maari speed-ai glide panna vachurken
-                  transition: `transform ${groundTrackPoints.length <= 40 ? "8000ms" : "2000ms"} linear`,
-                  transform: `translate(${Number(liveCoords.lng) + 180}px, ${90 - Number(liveCoords.lat)}px)`,
-                }}
-              >
-                <circle
-                  r="3.5"
-                  fill={riskColor}
-                  className="animate-pulse shadow-lg"
-                />
-                <circle
-                  r="10"
-                  fill={riskColor}
-                  fillOpacity="0.15"
-                  className="animate-ping"
-                />
-                <circle r="1" fill="white" />
-              </g>
-            </svg>
-
-            <div className="absolute bottom-4 left-4 z-20 bg-black/80 backdrop-blur-md border border-white/10 px-3 py-1 rounded-lg flex items-center gap-2">
+            <div className="absolute bottom-4 left-4 z-30 bg-black/80 backdrop-blur-md border border-white/10 px-3 py-1 rounded-lg flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
               <span className="text-[8px] font-mono font-bold text-slate-300 uppercase">
                 Uplink Active // ID_{asset.norad_id}
@@ -275,10 +201,12 @@ const SatelliteAnalysis = ({ asset, onBack }) => {
           <div className="bg-white/5 border border-white/10 p-4 rounded-[1.2rem] flex flex-col gap-2 shrink-0">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-1.5">
-                <Cpu size={12} className="text-cyan-500" />
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                  Confidence
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <Cpu size={12} className="text-cyan-500" />
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                    Confidence
+                  </span>
+                </div>
               </div>
               <span className="text-[10px] font-mono font-bold text-white">
                 {confidenceScore}%

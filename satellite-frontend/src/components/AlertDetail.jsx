@@ -24,7 +24,8 @@ const AlertDetail = ({ asset }) => {
     });
     trackIndexRef.current = 0;
 
-    const glideSpeed = track.length <= 40 ? 8000 : 5000;
+    // 💡 LOGIC: showPath ON-la irundha FAST (100ms), OFF-la irundha romba SLOW (5000ms)
+    const glideSpeed = showPath ? 100 : 5000; 
 
     const timer = setInterval(() => {
       trackIndexRef.current = (trackIndexRef.current + 1) % track.length;
@@ -38,7 +39,7 @@ const AlertDetail = ({ asset }) => {
     }, glideSpeed);
 
     return () => clearInterval(timer);
-  }, [asset]);
+  }, [asset, showPath]); // 💡 Dependency sethurukkaen so button click panna speed udanae maarum
 
   if (!asset) return null;
 
@@ -47,6 +48,10 @@ const AlertDetail = ({ asset }) => {
   const isMedium = altitude >= 150 && altitude <= 250;
   const track = asset.ground_track || [];
   const reentryWindow = asset.reentry_window || {};
+
+  // 💡 PROJECTION LOGIC: Correctly mapping coordinates to SVG space
+  const getX = (lng) => (Number(lng) + 180) * (360 / 360);
+  const getY = (lat) => (90 - Number(lat)) * (180 / 180);
 
   return (
     <div className="h-full flex flex-col gap-3 p-2 overflow-hidden animate-in fade-in duration-700">
@@ -104,7 +109,7 @@ const AlertDetail = ({ asset }) => {
                     LAT
                   </p>
                   <p className="text-sm font-mono font-bold text-white italic">
-                    {Number(liveCoords.lat).toFixed(3)}°
+                    {Number(liveCoords.lat).toFixed(4)}°
                   </p>
                 </div>
                 <div className="bg-white/5 p-2.5 rounded-xl border border-white/5">
@@ -112,7 +117,7 @@ const AlertDetail = ({ asset }) => {
                     LNG
                   </p>
                   <p className="text-sm font-mono font-bold text-white italic">
-                    {Number(liveCoords.lng).toFixed(3)}°
+                    {Number(liveCoords.lng).toFixed(4)}°
                   </p>
                 </div>
               </div>
@@ -131,11 +136,11 @@ const AlertDetail = ({ asset }) => {
               <button
                 onClick={() => setShowPath(!showPath)}
                 className={`w-full py-2.5 rounded-xl font-black text-[9px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${
-                  showPath ? "bg-red-500 text-white" : "bg-white text-black"
+                  showPath ? "bg-red-500 text-white animate-pulse" : "bg-white text-black"
                 }`}
               >
                 <Navigation size={10} className={showPath ? "rotate-45" : ""} />
-                {showPath ? "Hide Path" : "Project Path"}
+                {showPath ? "Projecting Trajectory..." : "Project Impact Path"}
               </button>
             </div>
           </div>
@@ -143,21 +148,28 @@ const AlertDetail = ({ asset }) => {
 
         {/* RIGHT PANEL: Map */}
         <div className="lg:w-2/3 h-full">
-          <div className="relative bg-black rounded-[2rem] border border-white/10 overflow-hidden h-full shadow-2xl">
-            <div className="absolute top-4 left-6 z-20 flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-md border border-white/5">
+          <div className="relative bg-[#020617] rounded-[2rem] border border-white/10 overflow-hidden h-full shadow-2xl">
+            {/* 1. MAP BASE LAYER (Reduced Opacity to prevent dominance) */}
+            <div className="absolute inset-0 opacity-25">
+              <img
+                src="https://upload.wikimedia.org/wikipedia/commons/8/83/Equirectangular_projection_SW.jpg"
+                alt="Earth Map"
+                className="w-full h-full object-cover"
+              />
+            </div>
+
+            {/* 2. DIGITAL GRID OVERLAY (Adds professional monitor look) */}
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:30px_30px] pointer-events-none" />
+
+            {/* 3. INTERFACE LABEL */}
+            <div className="absolute top-4 left-6 z-20 flex items-center gap-2 bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10">
               <MapIcon size={12} className="text-cyan-500" />
               <span className="text-[9px] font-black text-white uppercase tracking-widest">
                 Orbital Displacement Monitor
               </span>
             </div>
-            <div
-              className="absolute inset-0"
-              style={{
-                backgroundImage: `url('https://upload.wikimedia.org/wikipedia/commons/8/83/Equirectangular_projection_SW.jpg')`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }}
-            />
+
+            {/* 4. REAL SVG PATH & GLIDING MARKER */}
             <svg
               viewBox="0 0 360 180"
               className="w-full h-full relative z-10 p-4"
@@ -166,28 +178,42 @@ const AlertDetail = ({ asset }) => {
                 <polyline
                   fill="none"
                   stroke="#ef4444"
-                  strokeWidth="1.5"
-                  strokeDasharray="4 3"
+                  strokeWidth="1.2"
+                  strokeDasharray="3 2"
                   points={track
-                    .map((p) => `${Number(p[1]) + 180},${90 - Number(p[0])}`)
+                    .map((p) => `${getX(p[1])},${getY(p[0])}`)
                     .join(" ")}
+                  className="opacity-70"
                 />
               )}
+
+              {/* ANIMATED GLIDING MARKER */}
               <g
                 style={{
-                  transition: `transform ${track.length <= 40 ? "8000ms" : "5000ms"} linear`,
-                  transform: `translate(${Number(liveCoords.lng) + 180}px, ${90 - Number(liveCoords.lat)}px)`,
+                  transition: `transform ${showPath ? "100ms" : "5000ms"} linear`,
+                  transform: `translate(${getX(liveCoords.lng)}px, ${getY(liveCoords.lat)}px)`,
                 }}
               >
-                <circle r="4" fill="#ef4444" className="animate-pulse" />
+                <circle r="3.5" fill="#ef4444" className="shadow-lg" />
                 <circle
-                  r="12"
+                  r="10"
                   fill="#ef4444"
-                  fillOpacity="0.2"
+                  fillOpacity="0.15"
                   className="animate-ping"
+                />
+                <circle
+                  r="15"
+                  fill="#00f2ff"
+                  fillOpacity="0.05"
+                  className="animate-pulse"
                 />
               </g>
             </svg>
+
+            {/* Projection info sticker */}
+            <div className="absolute bottom-4 right-6 z-20 bg-black/40 px-2 py-1 rounded text-[7px] font-mono text-slate-500 uppercase">
+              Ref: Equirectangular / WGS84
+            </div>
           </div>
         </div>
       </div>
@@ -223,7 +249,7 @@ const AlertDetail = ({ asset }) => {
             <span className="text-[10px] opacity-40">days</span>
           </p>
         </div>
-      </div>
+      </div>  
     </div>
   );
 };

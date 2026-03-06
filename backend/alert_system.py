@@ -1,6 +1,6 @@
 def check_hazard_status(days_left, altitude):
     # Logic: Status trigger
-    if days_left < 7 or altitude < 120:
+    if days_left < 7 or altitude < 150:
         return "CRITICAL"
     elif days_left < 30 or altitude < 250:
         return "WARNING"
