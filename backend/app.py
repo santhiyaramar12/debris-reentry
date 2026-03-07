@@ -122,34 +122,33 @@ except Exception as e:
 
 def get_altitude_from_tle(l2):
     """
-    FIX: Use split() instead of character slicing to correctly extract
-    mean motion regardless of spacing inconsistencies from fix_tle_format().
+    Calculate orbital altitude from TLE line 2 mean motion.
+    Returns None if TLE is missing/invalid so callers can skip the satellite
+    rather than silently assigning a fake 350 km altitude.
     """
     try:
         parts = l2.strip().split()
         if len(parts) < 8:
-            return 350.0
+            return None
 
-        # FIX: Reliable extraction via split index, not character position
         mean_motion = float(parts[7])
+        if mean_motion <= 0:
+            return None
 
-        # Physics constants
         mu = 398600.4418  # Earth's gravitational parameter (km³/s²)
         re = 6371.0       # Earth radius (km)
 
-        # Convert rev/day → rad/s
-        n = (mean_motion * 2 * math.pi) / 86400
-
-        # Semi-major axis
-        a = (mu / (n ** 2)) ** (1 / 3)
+        n   = (mean_motion * 2 * math.pi) / 86400
+        a   = (mu / (n ** 2)) ** (1 / 3)
         alt = a - re
 
-        # Guard against invalid results
-        if alt < 50 or alt > 2000:
-            return 350.0
+        # Guard against physically impossible results
+        if alt < 50 or alt > 50000:
+            return None
+
         return round(alt, 2)
     except Exception:
-        return 350.0
+        return None
 
 
 def fix_tle_format(line1: Any, line2: Any) -> tuple:
@@ -185,17 +184,17 @@ def fix_tle_format(line1: Any, line2: Any) -> tuple:
 def classify_severity(alt: float) -> str:
     """
     Centralised severity classifier — single source of truth used by all routes.
-    Thresholds aligned with JSON mean motion values:
-      16.2 rev/day → ~85 km  → RED
-      15.8 rev/day → ~120 km → YELLOW
-      15.5 rev/day → ~145 km → PURPLE
-      14.2 rev/day → ~450 km → STABLE
+    Now reads thresholds from database 'alert_settings'.
     """
-    if alt < 100:
+    settings = db.alert_settings.find_one({"_id": "thresholds"})
+    if not settings:
+        settings = {"red_threshold": 100, "yellow_threshold": 125, "purple_threshold": 150}
+        
+    if alt < settings.get("red_threshold", 100):
         return "RED"
-    elif alt < 125:
+    elif alt < settings.get("yellow_threshold", 125):
         return "YELLOW"
-    elif alt < 150:
+    elif alt < settings.get("purple_threshold", 150):
         return "PURPLE"
     else:
         return "STABLE"
@@ -311,6 +310,10 @@ def get_global_alerts(current_user):
             l1, l2 = fix_tle_format(sat.get('tle_line1'), sat.get('tle_line2'))
             current_alt = get_altitude_from_tle(l2)
 
+            # Skip satellites with missing or invalid TLE — do NOT assign a fake altitude
+            if current_alt is None:
+                continue
+
             predictor = ReentryPredictor(sat)
             analysis = predictor.predict_reentry(current_alt=int(current_alt))
 
@@ -363,21 +366,25 @@ def get_global_alerts(current_user):
             if current_alt < 150:
                 all_alerts.append(alert_data)
 
-            # Auto-report: only for crisis satellites, avoid duplicates
-            if current_alt < 150:
-                existing_auto = db.auto_reports.find_one({
-                    "norad_id": sat.get('norad_id'),
-                    "status": "DRAFT"
-                })
-                if not existing_auto:
-                    db.auto_reports.insert_one({
+            # AUTO-REPORT: strict altitude gate — ONLY insert if altitude is
+            # genuinely below 150 km using the live-calculated value.
+            # Uses upsert so status changes on the same satellite don't
+            # create duplicate stale records.
+            if float(current_alt) < 150:
+                db.auto_reports.update_one(
+                    {"norad_id": sat.get('norad_id')},
+                    {"$set": {
                         "norad_id":     sat.get('norad_id'),
                         "name":         sat.get('name', 'Unknown'),
-                        "altitude":     round(float(current_alt), 2),  # type: ignore
+                        "altitude":     round(float(current_alt), 2),
                         "severity":     severity,
+                        "days_left":    round(float(days_left), 2),
+                        "hours_left":   round(float(hours_left), 1),
                         "generated_at": datetime.utcnow(),
                         "status":       "DRAFT"
-                    })
+                    }},
+                    upsert=True
+                )
 
         # Sort most urgent first
         all_alerts.sort(key=lambda x: x.get('days_left', 999))
@@ -524,6 +531,79 @@ def get_user_reports(current_user):
 # 9. ADMIN ROUTES
 # ============================================================
 
+@app.route('/api/admin/metrics', methods=['GET'])
+@token_required
+@admin_only
+def get_admin_metrics(current_user):
+    """Admin: Get dashboard widgets metrics."""
+    try:
+        total_tracked = db.mission_control.count_documents({})
+        # Active alerts (severity RED or alt < 100)
+        # Assuming alerts collection is either queried dynamically or from alerts collection
+        # Let's count them dynamically from mission_control for now
+        satellites = list(db.mission_control.find({}))
+        active_alerts = 0
+        for sat in satellites:
+            l2 = sat.get('tle_line2')
+            if l2:
+                alt = get_altitude_from_tle(l2)
+                if alt < 100 or sat.get('severity') == 'RED':
+                    active_alerts += 1
+                    
+        pending_reports = db.user_reports.count_documents({"status": "PENDING"})
+        verified_events = db.user_reports.count_documents({"status": "VERIFIED"})
+        
+        return jsonify({
+            "status": "success",
+            "metrics": {
+                "total_tracked": total_tracked,
+                "active_alerts": active_alerts,
+                "pending_reports": pending_reports,
+                "verified_events": verified_events
+            }
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/admin/sync-status', methods=['GET'])
+@token_required
+@admin_only
+def get_sync_status(current_user):
+    """Admin: Get data sync status."""
+    try:
+        status = db.system_settings.find_one({"_id": "sync_status"})
+        if not status:
+            status = {
+                "last_sync": "Never",
+                "next_sync": "Not Scheduled",
+                "status": "Unknown"
+            }
+        return jsonify({
+            "status": "success",
+            "data": status
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/admin/sync-satellites', methods=['POST'])
+@token_required
+@admin_only
+def sync_satellites(current_user):
+    """Admin: Trigger satellite data DB sync manually."""
+    try:
+        import subprocess
+        script_path = os.path.join(BASE_DIR, "update_sats.py")
+        db.system_settings.update_one(
+            {"_id": "sync_status"},
+            {"$set": {"status": "Syncing..."}},
+            upsert=True
+        )
+        subprocess.Popen([sys.executable, script_path])
+        return jsonify({"status": "success", "message": "Sync triggered successfully"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @app.route('/api/admin/reports', methods=['GET'])
 @token_required
 @admin_only
@@ -531,7 +611,8 @@ def get_all_reports(current_user):
     """Admin: Get all user submissions + auto-generated reports."""
     try:
         user_reports = list(db.user_reports.find({}).sort("created_at", -1))
-        auto_reports = list(db.auto_reports.find({}).sort("generated_at", -1))
+        # Strict filter: only return auto_reports where altitude < 150 km
+        auto_reports = list(db.auto_reports.find({"altitude": {"$lt": 150}}).sort("generated_at", -1))
 
         for r in user_reports:
             r['_id'] = str(r['_id'])
@@ -557,13 +638,13 @@ def review_report(current_user, report_id):
         data = request.get_json()
         action = data.get('action', '').upper()
 
-        if action not in ['APPROVE', 'REJECT']:
-            return jsonify({"message": "Invalid action. Use APPROVE or REJECT"}), 400
+        if action not in ['VERIFY', 'REJECT']:
+            return jsonify({"message": "Invalid action. Use VERIFY or REJECT"}), 400
 
         result = db.user_reports.update_one(
             {"_id": ObjectId(report_id)},
             {"$set": {
-                "status":       "APPROVED" if action == "APPROVE" else "REJECTED",
+                "status":       "VERIFIED" if action == "VERIFY" else "REJECTED",
                 "reviewed_by":  str(current_user['_id']),
                 "reviewed_at":  datetime.utcnow(),
                 "review_notes": data.get('notes', '')
@@ -616,9 +697,15 @@ def dispatch_official_report(current_user):
 def get_admin_logs(current_user):
     """Admin: Get all system activity logs."""
     try:
-        user_reports  = list(db.user_reports.find({}).sort("created_at", -1).limit(50))
-        auto_reports  = list(db.auto_reports.find({}).sort("generated_at", -1).limit(50))
-        dispatched    = list(db.dispatched_reports.find({}).sort("dispatched_at", -1).limit(50))
+        user_reports = list(db.user_reports.find({}).sort("created_at", -1).limit(50))
+
+        # STRICT FILTER: Only return auto-reports where altitude is confirmed < 150 km.
+        # This prevents stale DB records (from bad TLEs or past runs) from showing up.
+        auto_reports = list(db.auto_reports.find(
+            {"altitude": {"$lt": 150}}
+        ).sort("generated_at", -1).limit(50))
+
+        dispatched = list(db.dispatched_reports.find({}).sort("dispatched_at", -1).limit(50))
 
         for r in user_reports + auto_reports + dispatched:
             r['_id'] = str(r['_id'])
@@ -629,6 +716,166 @@ def get_admin_logs(current_user):
             "auto_reports":       auto_reports,
             "dispatched_reports": dispatched
         })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/admin/alerts/<norad_id>', methods=['PUT'])
+@token_required
+@admin_only
+def update_alert(current_user, norad_id):
+    try:
+        data = request.get_json()
+        update_fields: dict[str, Any] = {}
+        if 'severity' in data:
+            update_fields['severity'] = data['severity']
+        if 'predicted_reentry_window' in data:
+            update_fields['predicted_reentry_window'] = data['predicted_reentry_window']
+        if 'impact_probability' in data:
+            update_fields['impact_probability'] = data['impact_probability']
+        if 'notes' in data:
+            update_fields['notes'] = data['notes']
+
+        # Update or insert into alerts collection
+        db.alerts.update_one(
+            {"norad_id": str(norad_id)},
+            {"$set": update_fields},
+            upsert=True
+        )
+        
+        db.system_logs.insert_one({
+            "timestamp": datetime.utcnow().isoformat(),
+            "action": f"Alert updated: {data.get('severity', 'modified')}",
+            "admin": current_user.get('username'),
+            "satellite": f"NORAD {norad_id}"
+        })
+
+        if data.get('severity') == 'RED':
+            from services.email_service import send_alert_email  # type: ignore
+            sat = db.mission_control.find_one({"norad_id": str(norad_id)})
+            if sat:
+                alt = get_altitude_from_tle(sat.get('tle_line2')) if sat.get('tle_line2') else "Unknown"
+                alert_data = {
+                    "name": sat.get('name', 'Unknown'),
+                    "norad_id": norad_id,
+                    "severity": "RED",
+                    "altitude": alt
+                }
+                if send_alert_email(alert_data):
+                    update_fields["email_sent"] = True
+                    update_fields["email_sent_time"] = datetime.utcnow().isoformat()
+                    update_fields["email_recipients"] = ["missioncontrol@spacetug.tech"] # Or actual recipients list
+                    db.alerts.update_one({"norad_id": str(norad_id)}, {"$set": update_fields})
+
+        return jsonify({"status": "success", "message": "Alert updated successfully"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/admin/alert-settings', methods=['GET', 'POST'])
+@token_required
+@admin_only
+def handle_alert_settings(current_user):
+    try:
+        if request.method == 'GET':
+            settings = db.alert_settings.find_one({"_id": "thresholds"})
+            if not settings:
+                settings = {
+                    "red_threshold": 100,
+                    "yellow_threshold": 125,
+                    "purple_threshold": 150
+                }
+            return jsonify({"status": "success", "settings": settings})
+            
+        elif request.method == 'POST':
+            data = request.get_json()
+            db.alert_settings.update_one(
+                {"_id": "thresholds"},
+                {"$set": {
+                    "red_threshold": float(data.get("red_threshold", 100)),
+                    "yellow_threshold": float(data.get("yellow_threshold", 125)),
+                    "purple_threshold": float(data.get("purple_threshold", 150))
+                }},
+                upsert=True
+            )
+            return jsonify({"status": "success", "message": "Threshold settings updated"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/admin/system-logs', methods=['GET'])
+@token_required
+@admin_only
+def get_actual_system_logs(current_user):
+    """Admin: Get generic system activity logs."""
+    try:
+        logs = list(db.system_logs.find({}).sort("timestamp", -1).limit(100))
+        for l in logs:
+            l['_id'] = str(l['_id'])
+        return jsonify({"status": "success", "logs": logs})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/admin/users', methods=['GET'])
+@token_required
+@admin_only
+def get_all_users(current_user):
+    """Admin: Get all registered users."""
+    try:
+        users = list(db.users.find({}, {"password": 0}))
+        for u in users:
+            u['_id'] = str(u['_id'])
+        return jsonify({"status": "success", "users": users})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/admin/users/<user_id>', methods=['PUT'])
+@token_required
+@admin_only
+def update_user_role(current_user, user_id):
+    """Admin: Update user parameters like role."""
+    try:
+        data = request.get_json()
+        new_role = data.get('role')
+        if new_role not in ['user', 'response_team', 'supervisor', 'admin']:
+            return jsonify({"status": "error", "message": "Invalid role"}), 400
+
+        if str(current_user['_id']) == user_id:
+            return jsonify({"status": "error", "message": "Cannot modify your own role"}), 403
+
+        db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"role": new_role}})
+        
+        db.system_logs.insert_one({
+            "timestamp": datetime.utcnow().isoformat(),
+            "action": f"User {user_id} role updated to {new_role}",
+            "admin": current_user.get('username')
+        })
+
+        return jsonify({"status": "success", "message": "User role updated"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/admin/users/<user_id>', methods=['DELETE'])
+@token_required
+@admin_only
+def delete_user(current_user, user_id):
+    """Admin: Delete a user."""
+    try:
+        if str(current_user['_id']) == user_id:
+            return jsonify({"status": "error", "message": "Cannot delete yourself"}), 403
+
+        db.users.delete_one({"_id": ObjectId(user_id)})
+        
+        db.system_logs.insert_one({
+            "timestamp": datetime.utcnow().isoformat(),
+            "action": f"User {user_id} deleted",
+            "admin": current_user.get('username')
+        })
+
+        return jsonify({"status": "success", "message": "User deleted"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -835,6 +1082,10 @@ def get_all_satellites():
             l1, l2 = fix_tle_format(sat.get("tle_line1"), sat.get("tle_line2"))
             alt = get_altitude_from_tle(l2)
 
+            # Skip satellites whose TLE cannot produce a valid altitude
+            if alt is None:
+                continue
+
             predictor = ReentryPredictor(sat)
             analysis  = predictor.predict_reentry(current_alt=int(alt))
             days_left = float(analysis.get("days_left", 99))
@@ -878,6 +1129,24 @@ def get_live_debris(current_user):
 def clear_history(current_user):
     db.refresh_tokens.delete_many({})
     return jsonify({"message": "All session tokens cleared"})
+
+
+@app.route('/api/admin/purge-stale-alerts', methods=['DELETE'])
+@token_required
+@admin_only
+def purge_stale_auto_reports(current_user):
+    """
+    Admin: Remove auto_reports for satellites that are NOT below 150 km.
+    Call this once after deploying this fix to clean up the existing bad records.
+    """
+    try:
+        result = db.auto_reports.delete_many({"altitude": {"$gte": 150}})
+        return jsonify({
+            "status":  "success",
+            "message": f"Purged {result.deleted_count} stale auto-report(s) above 150 km"
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 # ============================================================
@@ -1107,6 +1376,29 @@ def get_environment_weather():
 
 
 if __name__ == "__main__":
+    # On startup: wipe ALL stale auto_reports that are not strictly < 150 km.
+    # This handles mixed numeric/string types that can slip through MongoDB.
+    try:
+        # Delete records where altitude field is missing, >= 150, or stored as string
+        purged = db.auto_reports.delete_many({
+            "$or": [
+                {"altitude": {"$gte": 150}},
+                {"altitude": {"$exists": False}},
+                {"altitude": None},
+            ]
+        })
+        if purged.deleted_count:
+            print(f"🧹 Startup cleanup: removed {purged.deleted_count} stale auto-report(s)")
+        # Also remove any remaining records where altitude stored as string >= 150
+        for rec in db.auto_reports.find({"altitude": {"$type": "string"}}):
+            try:
+                if float(rec["altitude"]) >= 150:
+                    db.auto_reports.delete_one({"_id": rec["_id"]})
+            except Exception:
+                db.auto_reports.delete_one({"_id": rec["_id"]})
+    except Exception as e:
+        print(f"⚠ Startup cleanup warning: {e}")
+
     scheduler.init_app(app)
     scheduler.start()
     app.run(debug=True, port=5000, use_reloader=False)

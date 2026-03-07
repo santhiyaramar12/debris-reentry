@@ -11,7 +11,11 @@ function App() {
   const [token, setToken] = useState(() =>
     localStorage.getItem("access_token"),
   );
-  const [activeTab, setActiveTab] = useState("Home");
+  const [activeTab, setActiveTab] = useState(() => {
+    // Initialize based on URL
+    if (window.location.pathname === "/admin") return "Admin";
+    return "Home";
+  });
   const [showLogin, setShowLogin] = useState(false);
 
  /* const logout = () => {
@@ -43,7 +47,17 @@ function App() {
   const handleLoginSuccess = (newToken) => {
     setToken(newToken);
     setShowLogin(false);
-    setActiveTab("Home");
+    
+    // Resume to Admin if intended, else Home
+    const savedRole = localStorage.getItem("role") || "user";
+    if (window.location.pathname === "/admin" && (savedRole === "admin" || savedRole === "supervisor")) {
+      setActiveTab("Admin");
+    } else {
+      setActiveTab("Home");
+      if (window.location.pathname === "/admin") {
+        window.history.replaceState({}, "", "/");
+      }
+    }
   };
 
   const handleEnterMission = () => {
@@ -59,8 +73,26 @@ function App() {
     const savedToken = localStorage.getItem("access_token");
     if (savedToken) {
       setToken(savedToken);
+      
+      const savedRole = localStorage.getItem("role") || "user";
+      if (window.location.pathname === "/admin" && !(savedRole === "admin" || savedRole === "supervisor")) {
+        setActiveTab("Home");
+        window.history.replaceState({}, "", "/");
+      }
+    } else if (window.location.pathname === "/admin") {
+      // If we land on /admin but not logged in, show login immediately
+      setShowLogin(true);
     }
   }, []);
+
+  // Sync URL with activeTab
+  useEffect(() => {
+    if (activeTab === "Admin" && window.location.pathname !== "/admin") {
+      window.history.pushState({}, "", "/admin");
+    } else if (activeTab !== "Admin" && window.location.pathname === "/admin") {
+      window.history.pushState({}, "", "/");
+    }
+  }, [activeTab]);
 
   return (
     <div className="w-full h-screen bg-[#020617] text-slate-200 font-sans selection:bg-sky-500/30 flex flex-col overflow-hidden">

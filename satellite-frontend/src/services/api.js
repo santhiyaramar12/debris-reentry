@@ -54,10 +54,11 @@ export const satelliteService = {
       const res = await api.get(endpoint);
       const data = res.data;
 
-      // Sanitizing response structure
       let rawData = Array.isArray(data)
         ? data
         : data?.alerts || data?.satellites || data?.data || [];
+
+      if (!Array.isArray(rawData)) rawData = [];
 
       // api.js - inside fetchData mapping
       return rawData.map((item) => ({
@@ -101,6 +102,21 @@ export const satelliteService = {
     return res.data;
   },
 
+  getAdminMetrics: async () => {
+    const res = await api.get("/admin/metrics");
+    return res.data;
+  },
+
+  getSyncStatus: async () => {
+    const res = await api.get("/admin/sync-status");
+    return res.data;
+  },
+
+  triggerSync: async () => {
+    const res = await api.post("/admin/sync-satellites");
+    return res.data;
+  },
+
   reviewReport: async (reportId, action, notes = "") => {
     const res = await api.put(`/admin/reports/${reportId}/review`, {
       action,
@@ -128,6 +144,50 @@ export const satelliteService = {
   // Alerts
   getAlerts: async () => {
     const res = await api.get("/alerts");
+    let data = res.data;
+    let rawData = Array.isArray(data)
+      ? data
+      : data?.alerts || data?.satellites || data?.data || [];
+
+    if (!Array.isArray(rawData)) rawData = [];
+    return rawData;
+  },
+
+  updateAlert: async (noradId, alertData) => {
+    const res = await api.put(`/admin/alerts/${noradId}`, alertData);
+    return res.data;
+  },
+
+  // Alert Settings
+  getAlertSettings: async () => {
+    const res = await api.get("/admin/alert-settings");
+    return res.data;
+  },
+
+  updateAlertSettings: async (settingsData) => {
+    const res = await api.post("/admin/alert-settings", settingsData);
+    return res.data;
+  },
+
+  // Users
+  getUsers: async () => {
+    const res = await api.get("/admin/users");
+    return res.data;
+  },
+
+  updateUserRole: async (userId, role) => {
+    const res = await api.put(`/admin/users/${userId}`, { role });
+    return res.data;
+  },
+
+  deleteUser: async (userId) => {
+    const res = await api.delete(`/admin/users/${userId}`);
+    return res.data;
+  },
+
+  // System Logs
+  getSystemLogs: async () => {
+    const res = await api.get("/admin/system-logs");
     return res.data;
   },
 

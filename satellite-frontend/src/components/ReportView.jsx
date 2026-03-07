@@ -35,7 +35,7 @@ const ReportView = ({ asset }) => {
       }));
     }, 3000);
     return () => clearInterval(interval);
-  }, [asset, showPath]);
+  }, [asset]);
 
   // EMAIL HANDLER FUNCTION
   const handleDispatchEmail = async () => {

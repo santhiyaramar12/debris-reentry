@@ -7,6 +7,7 @@ import {
   Cloud,
   User,
   LogOut,
+  Shield,
 } from "lucide-react";
 import spacetugLogo from "../assets/SpaceTug-logo (2).png";
 
@@ -261,6 +262,27 @@ const Navbar = ({ activeTab, setActiveTab, onLogout }) => {
                   <User size={13} className="text-cyan-400" />
                   View Profile
                 </button>
+
+                {(role === "admin" || role === "supervisor") && (
+                  <button
+                    onClick={() => {
+                      setActiveTab("Admin");
+                      setShowProfileMenu(false);
+                    }}
+                    className="w-full px-4 py-3 text-left text-[10px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2 transition-colors duration-150"
+                    style={{ fontFamily: "'Syne', sans-serif" }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background =
+                        "rgba(255,255,255,0.05)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = "transparent")
+                    }
+                  >
+                    <Shield size={13} className="text-cyan-400" />
+                    Admin Panel
+                  </button>
+                )}
 
                 <div
                   style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}

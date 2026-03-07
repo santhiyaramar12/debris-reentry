@@ -65,9 +65,12 @@ const SEVERITY = {
 ───────────────────────────────────────────── */
 const generateGroundTrack = (sat, hoursAhead = 6) => {
   const norad = Number(sat.norad_id || 0);
-  const inc = Number(sat.orbital_elements?.inclination_deg) || 20 + (norad % 70);
-  const mm = Number(sat.orbital_elements?.mean_motion_rev_day) || 14 + (norad % 4) * 0.5;
-  const ma0 = Number(sat.orbital_elements?.mean_anomaly_deg) || (norad * 137.508) % 360;
+  const inc =
+    Number(sat.orbital_elements?.inclination_deg) || 20 + (norad % 70);
+  const mm =
+    Number(sat.orbital_elements?.mean_motion_rev_day) || 14 + (norad % 4) * 0.5;
+  const ma0 =
+    Number(sat.orbital_elements?.mean_anomaly_deg) || (norad * 137.508) % 360;
   const raan0 = Number(sat.orbital_elements?.raan_deg) || (norad * 97.3) % 360;
   const period = 1440 / mm;
   const totalPts = Math.floor(hoursAhead * 60) + 1;
@@ -1321,7 +1324,7 @@ const CrisisAlerts = () => {
   const fetchAlerts = useCallback(async () => {
     try {
       const data = await satelliteService.fetchData("Alerts");
-      const list = data?.alerts || (Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
       const reEntryList = list
         .filter((sat) => {
           const alt = Number(sat.altitude || sat.metadata?.altitude || 0);
@@ -1451,10 +1454,16 @@ const CrisisAlerts = () => {
           lng = rawLng;
         } else {
           const norad = Number(sat.norad_id || 0);
-          const inc = Number(sat.orbital_elements?.inclination_deg) || 20 + (norad % 70);
-          const mm = Number(sat.orbital_elements?.mean_motion_rev_day) || 14 + (norad % 4) * 0.5;
-          const ma = Number(sat.orbital_elements?.mean_anomaly_deg) || (norad * 137.508) % 360;
-          const raan = Number(sat.orbital_elements?.raan_deg) || (norad * 97.3) % 360;
+          const inc =
+            Number(sat.orbital_elements?.inclination_deg) || 20 + (norad % 70);
+          const mm =
+            Number(sat.orbital_elements?.mean_motion_rev_day) ||
+            14 + (norad % 4) * 0.5;
+          const ma =
+            Number(sat.orbital_elements?.mean_anomaly_deg) ||
+            (norad * 137.508) % 360;
+          const raan =
+            Number(sat.orbital_elements?.raan_deg) || (norad * 97.3) % 360;
           const period = 1440 / mm;
           const angleRad =
             ((ma + (360 / period) * timeOffset) % 360) * (Math.PI / 180);

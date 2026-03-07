@@ -103,8 +103,8 @@ const Dashboard = ({ activeTab, setActiveTab, setToken, logout }) => {
     try {
       const data = await satelliteService.fetchData(activeTab);
 
-      // Unwrap { status, count, alerts: [...] } response object
-      const list = data?.alerts || (Array.isArray(data) ? data : []);
+      // satelliteService.fetchData already returns a flat array — no need to unwrap again
+      const list = Array.isArray(data) ? data : [];
 
       // Filter only re-entry satellites and sort by urgency
       const sortedData = list
@@ -175,6 +175,13 @@ const Dashboard = ({ activeTab, setActiveTab, setToken, logout }) => {
     }
   }, [activeTab]);
 
+  // FIX: Moved above conditional returns — Rules of Hooks violation fixed
+  useEffect(() => {
+    if (activeTab === "Admin" && !isAdmin) {
+      setActiveTab("Home");
+    }
+  }, [activeTab, isAdmin, setActiveTab]);
+
   if (activeTab === "Home") {
     return (
       <HomePage
@@ -190,13 +197,7 @@ const Dashboard = ({ activeTab, setActiveTab, setToken, logout }) => {
   }
 
   if (activeTab === "Admin") {
-    if (!isAdmin) {
-      return (
-        <div className="h-full flex items-center justify-center text-red-500 text-sm font-mono uppercase tracking-widest">
-          Access Denied: Admin Privileges Required
-        </div>
-      );
-    }
+    if (!isAdmin) return null;
     return <AdminPanel />;
   }
 
@@ -236,73 +237,81 @@ const Dashboard = ({ activeTab, setActiveTab, setToken, logout }) => {
           </div>
 
           <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-2">
-            {alerts.map((item, idx) => {
-              const alt = Number(item.altitude || item.metadata?.altitude || 0);
-              const days = Number(
-                item.days_left || item.analysis?.days_left || 0,
-              );
+            {!alerts || alerts.length === 0 ? (
+              <div className="text-center py-10 text-slate-500 text-[10px] uppercase font-bold tracking-widest bg-white/5 rounded-3xl border border-white/5">
+                No data available
+              </div>
+            ) : (
+              alerts.map((item, idx) => {
+                const alt = Number(
+                  item.altitude || item.metadata?.altitude || 0,
+                );
+                const days = Number(
+                  item.days_left || item.analysis?.days_left || 0,
+                );
 
-              // ✅ Sync Color Logic with Backend Severity
-              let statusColor = "#a855f7";
-              let statusLabel = "DECAY TRACKING";
+                // ✅ Sync Color Logic with Backend Severity
+                let statusColor = "#a855f7";
+                let statusLabel = "DECAY TRACKING";
 
-              if (item.severity === "RED" || alt <= 100) {
-                statusColor = "#ef4444";
-                statusLabel = "IMMINENT RE-ENTRY";
-              } else if (item.severity === "YELLOW" || alt <= 125) {
-                statusColor = "#eab308";
-                statusLabel = "ATMOSPHERIC CAPTURE";
-              } else if (item.severity === "PURPLE" || alt <= 150) {
-                statusColor = "#a855f7";
-                statusLabel = "CRITICAL BOUNDARY";
-              }
+                if (item.severity === "RED" || alt <= 100) {
+                  statusColor = "#ef4444";
+                  statusLabel = "IMMINENT RE-ENTRY";
+                } else if (item.severity === "YELLOW" || alt <= 125) {
+                  statusColor = "#eab308";
+                  statusLabel = "ATMOSPHERIC CAPTURE";
+                } else if (item.severity === "PURPLE" || alt <= 150) {
+                  statusColor = "#a855f7";
+                  statusLabel = "CRITICAL BOUNDARY";
+                }
 
-              return (
-                <div
-                  key={idx}
-                  className="group bg-white/5 border border-white/5 p-6 rounded-3xl flex justify-between items-center hover:bg-white/10 hover:border-cyan-500/30 transition-all cursor-pointer"
-                  onClick={() => handleAnalyze(item)}
-                >
-                  <div className="flex items-center gap-6">
-                    <div className="relative">
-                      <div
-                        className={`w-3 h-3 rounded-full ${alt <= 125 ? "animate-pulse" : ""}`}
-                        style={{
-                          backgroundColor: statusColor,
-                          boxShadow: `0 0 15px ${statusColor}`,
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <p className="text-white font-black text-base uppercase tracking-tight group-hover:text-cyan-400">
-                        {item.name || "Object " + item.norad_id}
-                      </p>
-                      <div className="flex items-center gap-3 mt-1">
-                        <p
-                          className="text-[10px] font-mono font-bold tracking-widest"
-                          style={{ color: statusColor }}
-                        >
-                          ALT: {alt.toFixed(1)} KM
+                return (
+                  <div
+                    key={idx}
+                    className="group bg-white/5 border border-white/5 p-6 rounded-3xl flex justify-between items-center hover:bg-white/10 hover:border-cyan-500/30 transition-all cursor-pointer"
+                    onClick={() => handleAnalyze(item)}
+                  >
+                    <div className="flex items-center gap-6">
+                      <div className="relative">
+                        <div
+                          className={`w-3 h-3 rounded-full ${alt <= 125 ? "animate-pulse" : ""}`}
+                          style={{
+                            backgroundColor: statusColor,
+                            boxShadow: `0 0 15px ${statusColor}`,
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <p className="text-white font-black text-base uppercase tracking-tight group-hover:text-cyan-400">
+                          {item.name || "Object " + item.norad_id}
                         </p>
-                        <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest border-l border-white/10 pl-3">
-                          {statusLabel} | T-{days.toFixed(1)}D
-                        </span>
+                        <div className="flex items-center gap-3 mt-1">
+                          <p
+                            className="text-[10px] font-mono font-bold tracking-widest"
+                            style={{ color: statusColor }}
+                          >
+                            ALT: {alt.toFixed(1)} KM
+                          </p>
+                          <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest border-l border-white/10 pl-3">
+                            {statusLabel} | T-{days.toFixed(1)}D
+                          </span>
+                        </div>
                       </div>
                     </div>
+                    <button
+                      className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase transition-all"
+                      style={{
+                        backgroundColor: `${statusColor}20`,
+                        color: statusColor,
+                        border: `1px solid ${statusColor}40`,
+                      }}
+                    >
+                      Details
+                    </button>
                   </div>
-                  <button
-                    className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase transition-all"
-                    style={{
-                      backgroundColor: `${statusColor}20`,
-                      color: statusColor,
-                      border: `1px solid ${statusColor}40`,
-                    }}
-                  >
-                    Details
-                  </button>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
 
