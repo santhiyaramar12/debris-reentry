@@ -29,11 +29,12 @@ const UserProfile = ({ setActiveTab }) => {
   const storedName = localStorage.getItem("name") || "Commander";
   const storedUsername = localStorage.getItem("username") || "user@spacetug.io";
   const storedRole = localStorage.getItem("role") || "user";
+  const storedEmail = localStorage.getItem("email") || "";
 
   const [profileData, setProfileData] = useState({
     name: storedName,
     username: storedUsername,
-    email: "",
+    email: storedEmail,
     phone: "",
     role: storedRole,
     avatar: null,
@@ -152,7 +153,7 @@ const UserProfile = ({ setActiveTab }) => {
             <User size={22} className="text-cyan-400" />
           </div>
           <div>
-            <h2 className="text-xl font-black text-white uppercase italic tracking-tighter" style={{ fontFamily: 'var(--font-display)' }}>
+            <h2 className="text-xl font-black text-white uppercase italic tracking-tighter">
               Mission Personnel
             </h2>
             <p className="text-[9px] text-slate-500 font-mono uppercase tracking-widest">
@@ -166,11 +167,13 @@ const UserProfile = ({ setActiveTab }) => {
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pt-2">
         <div className="max-w-4xl mx-auto">
           {/* Profile Card */}
-          <div className="glass-card p-8 mb-5">
+          <div className="bg-slate-900/40 border border-white/10 rounded-2xl backdrop-blur-md p-8 mb-5">
             <div className="flex flex-col md:flex-row gap-8 items-start">
               {/* Avatar */}
               <div className="relative group">
-                <div className={`w-28 h-28 rounded-2xl flex items-center justify-center border-2 overflow-hidden ${isAdmin ? "border-red-500/30 bg-red-500/10" : "border-cyan-500/30 bg-cyan-500/10"}`}>
+                <div
+                  className={`w-28 h-28 rounded-2xl flex items-center justify-center border-2 overflow-hidden ${isAdmin ? "border-red-500/30 bg-red-500/10" : "border-cyan-500/30 bg-cyan-500/10"}`}
+                >
                   {profileData.avatar || editData.avatar ? (
                     <img
                       src={editData.avatar || profileData.avatar}
@@ -178,7 +181,12 @@ const UserProfile = ({ setActiveTab }) => {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <User size={48} className={isAdmin ? "text-red-400/50" : "text-cyan-400/50"} />
+                    <User
+                      size={48}
+                      className={
+                        isAdmin ? "text-red-400/50" : "text-cyan-400/50"
+                      }
+                    />
                   )}
                 </div>
                 {isEditing && (
@@ -203,12 +211,13 @@ const UserProfile = ({ setActiveTab }) => {
                       <input
                         type="text"
                         value={editData.name}
-                        onChange={(e) => setEditData((p) => ({ ...p, name: e.target.value }))}
+                        onChange={(e) =>
+                          setEditData((p) => ({ ...p, name: e.target.value }))
+                        }
                         className="text-2xl font-black text-white bg-transparent border-b-2 border-cyan-500/50 focus:outline-none focus:border-cyan-400 pb-1 w-full uppercase italic tracking-tighter"
-                        style={{ fontFamily: 'var(--font-display)' }}
                       />
                     ) : (
-                      <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter" style={{ fontFamily: 'var(--font-display)' }}>
+                      <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter">
                         {profileData.name}
                       </h3>
                     )}
@@ -220,13 +229,20 @@ const UserProfile = ({ setActiveTab }) => {
                         <input
                           type="email"
                           value={editData.email}
-                          onChange={(e) => setEditData((p) => ({ ...p, email: e.target.value }))}
+                          onChange={(e) =>
+                            setEditData((p) => ({
+                              ...p,
+                              email: e.target.value,
+                            }))
+                          }
                           placeholder="Enter email address"
                           className="text-[10px] text-slate-300 font-mono bg-transparent border-b border-white/20 focus:outline-none focus:border-cyan-400 pb-0.5 w-full"
                         />
                       ) : (
                         <span className="text-[10px] text-slate-400 font-mono">
-                          {profileData.email || profileData.username || "No email set"}
+                          {profileData.email ||
+                            profileData.username ||
+                            "No email set"}
                         </span>
                       )}
                     </div>
@@ -238,7 +254,12 @@ const UserProfile = ({ setActiveTab }) => {
                         <input
                           type="tel"
                           value={editData.phone}
-                          onChange={(e) => setEditData((p) => ({ ...p, phone: e.target.value }))}
+                          onChange={(e) =>
+                            setEditData((p) => ({
+                              ...p,
+                              phone: e.target.value,
+                            }))
+                          }
                           placeholder="Enter phone number"
                           className="text-[10px] text-slate-300 font-mono bg-transparent border-b border-white/20 focus:outline-none focus:border-cyan-400 pb-0.5 w-full"
                         />
@@ -286,7 +307,9 @@ const UserProfile = ({ setActiveTab }) => {
 
                 {/* Role Badge */}
                 <div className="flex items-center gap-3 mb-4">
-                  <div className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 ${isAdmin ? "bg-red-500/10 border border-red-500/20 text-red-400" : "bg-cyan-500/10 border border-cyan-500/20 text-cyan-400"}`}>
+                  <div
+                    className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 ${isAdmin ? "bg-red-500/10 border border-red-500/20 text-red-400" : "bg-cyan-500/10 border border-cyan-500/20 text-cyan-400"}`}
+                  >
                     <Shield size={11} />
                     {isAdmin ? "Mission Supervisor" : "Mission Operator"}
                   </div>
@@ -303,7 +326,8 @@ const UserProfile = ({ setActiveTab }) => {
                 )}
                 {saveStatus === "error" && (
                   <div className="flex items-center gap-2 text-red-400 text-xs font-bold">
-                    <AlertTriangle size={14} /> Failed to update profile. Try again.
+                    <AlertTriangle size={14} /> Failed to update profile. Try
+                    again.
                   </div>
                 )}
               </div>
@@ -312,48 +336,86 @@ const UserProfile = ({ setActiveTab }) => {
 
           {/* Report Status Summary Cards with Icons */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
-            <div className="glass-card p-5 text-center">
-              <FileText size={20} className="text-cyan-400 mx-auto mb-2 opacity-50" />
-              <p className="text-2xl font-mono font-black text-white">{reports.length}</p>
-              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1">Total Reports</p>
+            <div className="bg-slate-900/40 border border-white/10 rounded-2xl backdrop-blur-md p-5 text-center">
+              <FileText
+                size={20}
+                className="text-cyan-400 mx-auto mb-2 opacity-50"
+              />
+              <p className="text-2xl font-mono font-black text-white">
+                {reports.length}
+              </p>
+              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1">
+                Total Reports
+              </p>
             </div>
-            <div className="glass-card p-5 text-center">
-              <CheckCircle size={20} className="text-green-400 mx-auto mb-2 opacity-50" />
-              <p className="text-2xl font-mono font-black text-green-400">{approvedCount}</p>
-              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1">✅ Approved</p>
+            <div className="bg-slate-900/40 border border-white/10 rounded-2xl backdrop-blur-md p-5 text-center">
+              <CheckCircle
+                size={20}
+                className="text-green-400 mx-auto mb-2 opacity-50"
+              />
+              <p className="text-2xl font-mono font-black text-green-400">
+                {approvedCount}
+              </p>
+              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1">
+                ✅ Approved
+              </p>
             </div>
-            <div className="glass-card p-5 text-center">
-              <Clock size={20} className="text-yellow-400 mx-auto mb-2 opacity-50" />
-              <p className="text-2xl font-mono font-black text-yellow-400">{pendingCount}</p>
-              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1">🕒 Pending</p>
+            <div className="bg-slate-900/40 border border-white/10 rounded-2xl backdrop-blur-md p-5 text-center">
+              <Clock
+                size={20}
+                className="text-yellow-400 mx-auto mb-2 opacity-50"
+              />
+              <p className="text-2xl font-mono font-black text-yellow-400">
+                {pendingCount}
+              </p>
+              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1">
+                🕒 Pending
+              </p>
             </div>
-            <div className="glass-card p-5 text-center">
-              <XCircle size={20} className="text-red-400 mx-auto mb-2 opacity-50" />
-              <p className="text-2xl font-mono font-black text-red-400">{rejectedCount}</p>
-              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1">❌ Rejected</p>
+            <div className="bg-slate-900/40 border border-white/10 rounded-2xl backdrop-blur-md p-5 text-center">
+              <XCircle
+                size={20}
+                className="text-red-400 mx-auto mb-2 opacity-50"
+              />
+              <p className="text-2xl font-mono font-black text-red-400">
+                {rejectedCount}
+              </p>
+              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1">
+                ❌ Rejected
+              </p>
             </div>
           </div>
 
           {/* Recent Reports with status icons */}
-          <div className="glass-card p-6">
+          <div className="bg-slate-900/40 border border-white/10 rounded-2xl backdrop-blur-md p-6">
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2">
                 <FileText size={16} className="text-cyan-400" />
-                <h3 className="text-sm font-black text-white uppercase tracking-tight">Recent Submissions</h3>
+                <h3 className="text-sm font-black text-white uppercase tracking-tight">
+                  Recent Submissions
+                </h3>
               </div>
-              <span className="text-[9px] font-mono text-slate-500">{reports.length} total</span>
+              <span className="text-[9px] font-mono text-slate-500">
+                {reports.length} total
+              </span>
             </div>
 
             {loadingReports ? (
               <div className="text-center py-8">
                 <Activity className="w-6 h-6 text-cyan-500 mx-auto animate-pulse" />
-                <p className="text-[10px] text-slate-500 mt-2 uppercase tracking-widest">Loading activity...</p>
+                <p className="text-[10px] text-slate-500 mt-2 uppercase tracking-widest">
+                  Loading activity...
+                </p>
               </div>
             ) : reports.length === 0 ? (
               <div className="text-center py-8 border border-dashed border-white/10 rounded-xl">
                 <Rocket size={24} className="text-slate-600 mx-auto mb-3" />
-                <p className="text-[10px] text-slate-500 uppercase tracking-widest">No reports submitted yet</p>
-                <p className="text-[9px] text-slate-600 mt-1">Submit re-entry sightings from the Mission Hub</p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-widest">
+                  No reports submitted yet
+                </p>
+                <p className="text-[9px] text-slate-600 mt-1">
+                  Submit re-entry sightings from the Mission Hub
+                </p>
               </div>
             ) : (
               <div className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar">
@@ -366,15 +428,21 @@ const UserProfile = ({ setActiveTab }) => {
                       {getStatusIcon(report.status)}
                       <div>
                         <p className="text-[10px] text-white font-bold truncate max-w-[200px]">
-                          {report.description?.slice(0, 50) || "Re-entry Report"}...
+                          {report.description?.slice(0, 50) ||
+                            "Re-entry Report"}
+                          ...
                         </p>
                         <p className="text-[8px] text-slate-500 font-mono flex items-center gap-1">
                           <Calendar size={8} />
-                          {report.created_at ? new Date(report.created_at).toLocaleDateString() : "---"}
+                          {report.created_at
+                            ? new Date(report.created_at).toLocaleDateString()
+                            : "---"}
                         </p>
                       </div>
                     </div>
-                    <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${report.status === "APPROVED" ? "text-green-400 bg-green-500/10" : report.status === "REJECTED" ? "text-red-400 bg-red-500/10" : "text-yellow-400 bg-yellow-500/10"}`}>
+                    <span
+                      className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${report.status === "APPROVED" ? "text-green-400 bg-green-500/10" : report.status === "REJECTED" ? "text-red-400 bg-red-500/10" : "text-yellow-400 bg-yellow-500/10"}`}
+                    >
                       {getStatusLabel(report.status)}
                     </span>
                   </div>

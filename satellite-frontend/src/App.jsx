@@ -8,19 +8,32 @@ import Navbar from "./components/Navbar";
 
 function App() {
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem("access_token"));
+  const [token, setToken] = useState(() =>
+    localStorage.getItem("access_token"),
+  );
   const [activeTab, setActiveTab] = useState("Home");
   const [showLogin, setShowLogin] = useState(false);
 
-  const logout = () => {
+ /* const logout = () => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
     localStorage.removeItem("username");
     localStorage.removeItem("role");
     localStorage.removeItem("name");
+    localStorage.removeItem("email");
     setToken(null);
     setActiveTab("Home");
     setShowLogin(false);
+  };*/
+  const logout = () => {
+    localStorage.clear();
+
+    setToken(null);
+    setActiveTab("Home");
+    setShowLogin(false);
+
+    // Force full React refresh
+    window.location.reload();
   };
 
   const handleLoadingFinished = () => {

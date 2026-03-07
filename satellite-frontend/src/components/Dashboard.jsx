@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import Globe from "react-globe.gl";
 import {
   Zap,
   Rocket,
@@ -12,6 +13,12 @@ import {
   Calendar,
   AlertTriangle,
 } from "lucide-react";
+import {
+  ComposableMap,
+  Geographies,
+  Geography,
+  Marker,
+} from "react-simple-maps";
 
 import { satelliteService } from "../services/api";
 import SatelliteAnalysis from "./SatelliteAnalysis";
@@ -25,7 +32,10 @@ import CrisisAlerts from "./CrisisAlerts";
 import DecayForecast from "./DecayForecast";
 import EnvironmentPage from "./EnvironmentPage";
 
+const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+
 const Dashboard = ({ activeTab, setActiveTab, setToken, logout }) => {
+  const globeEl = useRef();
   const [alerts, setAlerts] = useState([]);
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [time, setTime] = useState(new Date());
@@ -166,7 +176,13 @@ const Dashboard = ({ activeTab, setActiveTab, setToken, logout }) => {
   }, [activeTab]);
 
   if (activeTab === "Home") {
-    return <HomePage isLoggedIn={true} onNavigateLogin={() => {}} />;
+    return (
+      <HomePage
+        setActiveTab={setActiveTab}
+        isLoggedIn={true}
+        onNavigateLogin={() => {}}
+      />
+    );
   }
 
   if (activeTab === "Profile") {

@@ -18,23 +18,27 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      const refreshToken = localStorage.getItem("refresh_token");
-      if (refreshToken && !error.config._retry) {
-        error.config._retry = true;
-        return api
-          .post("/auth/refresh", { refresh_token: refreshToken })
-          .then((res) => {
-            localStorage.setItem("access_token", res.data.access_token);
-            error.config.headers.Authorization = `Bearer ${res.data.access_token}`;
-            return api(error.config);
-          })
-          .catch(() => {
-            localStorage.clear();
-            window.location.reload();
-          });
-      }
-    }
+   if (
+     error.response?.status === 401 &&
+     localStorage.getItem("refresh_token") &&
+     localStorage.getItem("access_token")
+   ) {
+     const refreshToken = localStorage.getItem("refresh_token");
+     if (refreshToken && !error.config._retry) {
+       error.config._retry = true;
+       return api
+         .post("/auth/refresh", { refresh_token: refreshToken })
+         .then((res) => {
+           localStorage.setItem("access_token", res.data.access_token);
+           error.config.headers.Authorization = `Bearer ${res.data.access_token}`;
+           return api(error.config);
+         })
+         .catch(() => {
+           localStorage.clear();
+           window.location.reload();
+         });
+     }
+   }
     return Promise.reject(error);
   },
 );
@@ -73,18 +77,7 @@ export const satelliteService = {
   analyzeSatellite: async (noradId) => {
     try {
       const res = await api.get(`/analyze/${noradId}`);
-      const item = res.data;
-      if (item && item.status === "success") {
-        return {
-          ...item.metadata,
-          ground_track: item.map_data?.ground_track || [],
-          impact_corridor: item.impact_data?.corridor || [],
-          analysis: item.analysis || {},
-          days_left: Number(item.analysis?.days_left || 0),
-          reentry_window: item.reentry_window || {},
-        };
-      }
-      return item;
+      return res.data;
     } catch (err) {
       console.error("Analyze Error:", err);
       return null;

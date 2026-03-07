@@ -214,10 +214,11 @@ def register():
 
         hashed_pw = generate_password_hash(data['password'], method='pbkdf2:sha256')
         db.users.insert_one({
-            "name": data.get('name', 'Commander'),
-            "username": data['username'],
-            "password": hashed_pw,
-            "role": data.get('role', 'user'),
+            "name":       data.get('name', 'Commander'),
+            "username":   data['username'],
+            "email":      data.get('email', ''),
+            "password":   hashed_pw,
+            "role":       data.get('role', 'user'),
             "created_at": datetime.now()
         })
         return jsonify({"status": "success", "message": "Registered successfully"}), 201
@@ -239,12 +240,13 @@ def login():
                 "created_at": datetime.now()
             })
             return jsonify({
-                "status": "success",
-                "access_token": access_t,
+                "status":        "success",
+                "access_token":  access_t,
                 "refresh_token": refresh_t,
-                "username": user['username'],
-                "role": user['role'],
-                "name": user.get('name', 'Commander')
+                "username":      user['username'],
+                "email":         user.get('email', ''),
+                "role":          user['role'],
+                "name":          user.get('name', 'Commander')
             })
         return jsonify({"message": "Invalid credentials"}), 401
     except Exception as e:
@@ -269,6 +271,29 @@ def refresh():
         return jsonify({"access_token": new_access_t})
     except Exception:
         return jsonify({"message": "Expired"}), 401
+
+
+@app.route('/api/auth/logout', methods=['POST'])
+# Token verification optional-a vechikalam logout-ku, 
+# refresh token irunthale delete panna pothum
+def logout():
+    try:
+        data = request.get_json(silent=True) or {}
+        r_token = data.get('refresh_token')
+        
+        if not r_token:
+            return jsonify({"status": "error", "message": "Refresh token missing"}), 400
+
+        # Database-la irunthu antha specific session-ah matum delete pannurom
+        result = db.refresh_tokens.delete_one({"token": r_token})
+        
+        if result.deleted_count > 0:
+            return jsonify({"status": "success", "message": "Logged out successfully"}), 200
+        else:
+            return jsonify({"status": "error", "message": "Session not found"}), 404
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 # ============================================================

@@ -25,7 +25,7 @@ const Login = ({ setToken, role = "user", onBack }) => {
         : "http://localhost:5000/api/auth/login";
 
       const payload = isRegistering
-        ? { name, username: email, password, role: role }
+        ? { name, username: email, email, password, role: role }
         : { username: email, password };
 
       const response = await axios.post(endpoint, payload);
@@ -46,6 +46,7 @@ const Login = ({ setToken, role = "user", onBack }) => {
           );
           localStorage.setItem("role", response.data.role || "user");
           localStorage.setItem("name", response.data.name || "Commander");
+          localStorage.setItem("email", response.data.email || "");
 
           setToken(response.data.access_token);
         }

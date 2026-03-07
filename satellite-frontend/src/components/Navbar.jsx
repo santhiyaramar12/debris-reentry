@@ -1,23 +1,20 @@
 import React, { useState } from "react";
 import {
-  Rocket,
   Home,
   AlertTriangle,
   Target,
   Satellite,
   Cloud,
-  Activity,
   User,
   LogOut,
 } from "lucide-react";
+import spacetugLogo from "../assets/SpaceTug-logo (2).png";
 
 const Navbar = ({ activeTab, setActiveTab, onLogout }) => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const role = localStorage.getItem("role") || "user";
-  const displayName = localStorage.getItem("name") || "Commander";
-  const isAdmin = role === "admin" || role === "supervisor";
+  const displayName = localStorage.getItem("name") || "User";
 
-  // Exactly 5 tabs — no admin tab in nav
   const navItems = [
     { id: "Home", icon: Home, label: "Mission Hub" },
     { id: "Alerts", icon: AlertTriangle, label: "Crisis Alerts" },
@@ -27,110 +24,308 @@ const Navbar = ({ activeTab, setActiveTab, onLogout }) => {
   ];
 
   return (
-    <nav className="border-b border-white/10 bg-black/70 backdrop-blur-2xl px-5 py-2.5 flex justify-between items-center z-50 shadow-2xl relative">
-      {/* LEFT: Logo + Nav Tabs */}
-      <div className="flex items-center gap-5">
-        <div
-          className="flex items-center gap-2.5 px-2 group cursor-pointer"
-          onClick={() => setActiveTab("Home")}
-        >
-          <div className="bg-gradient-to-br from-orange-500 to-red-600 p-1.5 rounded-lg shadow-lg shadow-orange-600/20 group-hover:scale-110 transition-transform">
-            <Rocket className="text-white fill-white" size={16} />
-          </div>
-          <h1 className="text-white font-black tracking-[0.15em] text-sm uppercase" style={{ fontFamily: 'var(--font-display)' }}>
-            SPACETUG
-          </h1>
-        </div>
-
-        <div className="flex items-center gap-0.5 bg-white/5 p-1 rounded-xl border border-white/10">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`relative px-3.5 py-2 rounded-lg transition-all text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 ${
-                  isActive
-                    ? "bg-cyan-500/15 text-cyan-400 nav-active-glow"
-                    : "text-slate-400 hover:text-white hover:bg-white/5"
-                }`}
-              >
-                <Icon size={13} />
-                <span className="hidden lg:inline">{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* RIGHT: User Info + Profile */}
-      <div className="flex items-center gap-3">
-        <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-green-500/10 border border-green-500/20 rounded-full">
-          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_6px_rgba(34,197,94,0.5)]" />
-          <span className="text-[8px] font-black text-green-400 uppercase tracking-widest">Live</span>
-        </div>
-
-        <div className="hidden md:flex items-center gap-2.5 pr-3 border-r border-white/10">
-          <div className="text-right">
-            <p className="text-[10px] font-black text-white uppercase tracking-tight leading-tight">
-              {displayName}
-            </p>
-            <p className="text-[8px] text-cyan-500/70 font-bold uppercase tracking-widest flex items-center justify-end gap-1">
-              <Activity size={7} />
-              {isAdmin ? "Mission Supervisor" : "Mission Control"}
-            </p>
-          </div>
-        </div>
-
-        {/* Profile Button */}
-        <div className="relative">
-          <button
-            onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className={`w-9 h-9 rounded-full flex items-center justify-center border transition-all cursor-pointer ${
-              activeTab === "Profile"
-                ? "bg-cyan-500/20 border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.3)]"
-                : "bg-cyan-500/10 border-cyan-500/20 hover:bg-cyan-500/20"
-            }`}
+    <>
+      <nav
+        className="border-b flex justify-between items-center z-50 relative px-5 py-2"
+        style={{
+          background: "rgba(2, 6, 23, 0.85)",
+          backdropFilter: "blur(24px)",
+          WebkitBackdropFilter: "blur(24px)",
+          borderColor: "rgba(255,255,255,0.07)",
+          boxShadow: "0 1px 0 rgba(6,182,212,0.06), 0 4px 24px rgba(0,0,0,0.4)",
+        }}
+      >
+        {/* ── LEFT: Logo + Nav Tabs ── */}
+        <div className="flex items-center gap-4">
+          {/* Logo */}
+          <div
+            className="flex items-center cursor-pointer group shrink-0"
+            onClick={() => setActiveTab("Home")}
+            style={{ transition: "opacity 0.2s" }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.82")}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
           >
-            <User size={16} className="text-cyan-400" />
-          </button>
+            <img
+              src={spacetugLogo}
+              alt="SpaceTug"
+              style={{
+                height: "100px",
+                width: "auto",
+                objectFit: "contain",
+                display: "block",
+                userSelect: "none",
+              }}
+            />
+          </div>
 
-          {showProfileMenu && (
-            <div className="absolute top-12 right-0 w-48 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[100] animate-in">
-              <button
-                onClick={() => {
-                  setActiveTab("Profile");
-                  setShowProfileMenu(false);
-                }}
-                className="w-full px-4 py-3 text-left text-[10px] font-bold text-slate-300 uppercase tracking-widest hover:bg-white/5 flex items-center gap-2 transition-colors"
-              >
-                <User size={13} className="text-cyan-400" />
-                View Profile
-              </button>
-              <div className="border-t border-white/5" />
-              <button
-                onClick={() => {
-                  onLogout();
-                  setShowProfileMenu(false);
-                }}
-                className="w-full px-4 py-3 text-left text-[10px] font-bold text-red-400 uppercase tracking-widest hover:bg-red-500/10 flex items-center gap-2 transition-colors"
-              >
-                <LogOut size={13} />
-                Logout
-              </button>
-            </div>
-          )}
+          {/* Vertical divider */}
+          <div
+            className="hidden md:block h-6 w-px shrink-0"
+            style={{ background: "rgba(255,255,255,0.1)" }}
+          />
+
+          {/* Nav items */}
+          <div className="flex items-center gap-0.5">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className="relative flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all duration-200"
+                  style={{
+                    color: isActive ? "#67e8f9" : "rgba(148,163,184,0.8)",
+                    background: isActive
+                      ? "rgba(6,182,212,0.09)"
+                      : "transparent",
+                    fontFamily: "'Syne', sans-serif",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.color = "#e2e8f0";
+                      e.currentTarget.style.background =
+                        "rgba(255,255,255,0.05)";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.color = "rgba(148,163,184,0.8)";
+                      e.currentTarget.style.background = "transparent";
+                    }
+                  }}
+                >
+                  {/* Icon */}
+                  <Icon
+                    size={13}
+                    style={{
+                      color: isActive ? "#06b6d4" : "currentColor",
+                      filter: isActive
+                        ? "drop-shadow(0 0 5px rgba(6,182,212,0.65))"
+                        : "none",
+                      transition: "filter 0.2s",
+                    }}
+                  />
+
+                  {/* Label */}
+                  <span className="hidden lg:inline">{item.label}</span>
+
+                  {/* Active glow underline */}
+                  {isActive && (
+                    <span
+                      className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full"
+                      style={{
+                        background:
+                          "linear-gradient(90deg, transparent, #06b6d4, transparent)",
+                        boxShadow: "0 0 8px rgba(6,182,212,0.8)",
+                        animation: "nbUnderlineIn 0.25s ease-out forwards",
+                      }}
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
 
+        {/* ── RIGHT: Live badge + user info + avatar ── */}
+        <div className="flex items-center gap-3">
+          {/* Live badge */}
+          <div
+            className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+            style={{
+              background: "rgba(34,197,94,0.08)",
+              border: "1px solid rgba(34,197,94,0.2)",
+            }}
+          >
+            <div
+              className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"
+              style={{ boxShadow: "0 0 6px rgba(34,197,94,0.6)" }}
+            />
+            <span
+              className="text-[8px] font-black text-green-400 uppercase tracking-widest"
+              style={{ fontFamily: "'Syne', sans-serif" }}
+            >
+              Live
+            </span>
+          </div>
+
+          {/* User info */}
+          <div
+            className="hidden md:flex items-center gap-2.5 pr-3"
+            style={{ borderRight: "1px solid rgba(255,255,255,0.08)" }}
+          >
+            <div className="text-right">
+              <p
+                className="text-[10px] font-black text-white uppercase tracking-tight leading-tight"
+                style={{ fontFamily: "'Syne', sans-serif" }}
+              >
+                {displayName}
+              </p>
+            </div>
+          </div>
+
+          {/* Avatar / profile button */}
+          <div className="relative">
+            <button
+              onClick={() => setShowProfileMenu(!showProfileMenu)}
+              className="w-9 h-9 rounded-full flex items-center justify-center border transition-all duration-200 cursor-pointer"
+              style={{
+                background:
+                  activeTab === "Profile"
+                    ? "rgba(6,182,212,0.2)"
+                    : "rgba(6,182,212,0.08)",
+                borderColor:
+                  activeTab === "Profile"
+                    ? "rgba(6,182,212,0.45)"
+                    : "rgba(6,182,212,0.18)",
+                boxShadow:
+                  activeTab === "Profile"
+                    ? "0 0 16px rgba(6,182,212,0.3)"
+                    : "none",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(6,182,212,0.18)";
+                e.currentTarget.style.borderColor = "rgba(6,182,212,0.4)";
+                e.currentTarget.style.boxShadow =
+                  "0 0 12px rgba(6,182,212,0.22)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background =
+                  activeTab === "Profile"
+                    ? "rgba(6,182,212,0.2)"
+                    : "rgba(6,182,212,0.08)";
+                e.currentTarget.style.borderColor =
+                  activeTab === "Profile"
+                    ? "rgba(6,182,212,0.45)"
+                    : "rgba(6,182,212,0.18)";
+                e.currentTarget.style.boxShadow =
+                  activeTab === "Profile"
+                    ? "0 0 16px rgba(6,182,212,0.3)"
+                    : "none";
+              }}
+            >
+              <User size={16} className="text-cyan-400" />
+            </button>
+
+            {/* Dropdown */}
+            {showProfileMenu && (
+              <div
+                className="absolute top-12 right-0 w-52 rounded-xl overflow-hidden z-[200]"
+                style={{
+                  background: "rgba(8,15,35,0.97)",
+                  backdropFilter: "blur(20px)",
+                  border: "1px solid rgba(255,255,255,0.09)",
+                  boxShadow:
+                    "0 16px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(6,182,212,0.08)",
+                  animation: "nbDropIn 0.18s ease-out forwards",
+                }}
+              >
+                {/* Profile header inside dropdown */}
+                <div
+                  className="px-4 py-3"
+                  style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+                >
+                  <p
+                    className="text-[10px] font-black text-white uppercase tracking-tight"
+                    style={{ fontFamily: "'Syne', sans-serif" }}
+                  >
+                    {displayName}
+                  </p>
+                  <p
+                    className="text-[8px] mt-0.5"
+                    style={{
+                      color: "rgba(6,182,212,0.6)",
+                      fontFamily: "'DM Sans', sans-serif",
+                    }}
+                  >
+                    Role: {role.charAt(0).toUpperCase() + role.slice(1)}
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setActiveTab("Profile");
+                    setShowProfileMenu(false);
+                  }}
+                  className="w-full px-4 py-3 text-left text-[10px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2 transition-colors duration-150"
+                  style={{ fontFamily: "'Syne', sans-serif" }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background =
+                      "rgba(255,255,255,0.05)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.background = "transparent")
+                  }
+                >
+                  <User size={13} className="text-cyan-400" />
+                  View Profile
+                </button>
+
+                <div
+                  style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
+                />
+
+                <button
+                  /* onClick={() => {
+                    setShowProfileMenu(false);
+
+                    // Clear all auth data immediately
+                    localStorage.removeItem("access_token");
+                    localStorage.removeItem("refresh_token");
+                    localStorage.removeItem("username");
+                    localStorage.removeItem("role");
+                    localStorage.removeItem("name");
+                    localStorage.removeItem("email");
+
+                    // Call parent logout
+                    onLogout();
+
+                    // Hard refresh to reset axios interceptor state
+                    window.location.href = "/";
+                  }}*/
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    onLogout();
+                  }}
+                  className="w-full px-4 py-3 text-left text-[10px] font-bold text-red-400 uppercase tracking-widest flex items-center gap-2 transition-colors duration-150"
+                  style={{ fontFamily: "'Syne', sans-serif" }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = "rgba(239,68,68,0.08)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.background = "transparent")
+                  }
+                >
+                  <LogOut size={13} />
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </nav>
+
+      {/* Click-away backdrop for dropdown */}
       {showProfileMenu && (
         <div
-          className="fixed inset-0 z-[90]"
+          className="fixed inset-0 z-[40]"
           onClick={() => setShowProfileMenu(false)}
         />
       )}
-    </nav>
+
+      {/* Navbar-scoped CSS */}
+      <style>{`
+        @keyframes nbUnderlineIn {
+          from { opacity: 0; transform: scaleX(0.4); }
+          to   { opacity: 1; transform: scaleX(1); }
+        }
+        @keyframes nbDropIn {
+          from { opacity: 0; transform: translateY(-6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+    </>
   );
 };
 
