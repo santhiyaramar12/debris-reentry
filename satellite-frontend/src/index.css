@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700;800&family=Share+Tech+Mono&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -9,24 +9,25 @@
    ══════════════════════════════════════ */
 :root {
   --bg-primary: #020617;
-  --bg-secondary: #060b13;
+  --bg-secondary: #020617;
   --bg-card: rgba(255, 255, 255, 0.03);
   --bg-card-hover: rgba(255, 255, 255, 0.06);
 
-  --color-critical: #ef4444;
-  --color-warning: #eab308;
+  --color-critical: #EF4444;
+  --color-warning: #FFD700;
   --color-amber: #f59e0b;
-  --color-safe: #22c55e;
-  --color-nominal: #06b6d4;
-  --color-accent: #06b6d4;
+  --color-safe: #00FF88;
+  --color-nominal: #06B6D4;
+  --color-accent: #06B6D4;
 
-  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-bg: rgba(2, 6, 23, 0.7);
   --glass-border: rgba(255, 255, 255, 0.08);
   --glass-blur: 20px;
 
-  --font-display: 'Outfit', 'Inter', system-ui, sans-serif;
-  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+  --font-display: 'Orbitron', 'Syne', sans-serif;
+  --font-body: 'Syne', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-tech: 'Share Tech Mono', monospace;
 }
 
 /* ══════════════════════════════════════
@@ -411,4 +412,165 @@ h1, h2, h3, h4, h5, h6 {
 @keyframes envAlertPulse {
   0%, 100% { border-color: rgba(239, 68, 68, 0.3); }
   50% { border-color: rgba(239, 68, 68, 0.6); box-shadow: 0 0 20px rgba(239, 68, 68, 0.1); }
+}
+
+/* ══════════════════════════════════════
+   CRISIS ALERTS — IMPACT & PREDICTION
+   ══════════════════════════════════════ */
+
+/* Impact marker pulse ring */
+@keyframes impactPulse {
+  0% { transform: scale(0.8); opacity: 0.8; }
+  50% { transform: scale(1.4); opacity: 0.3; }
+  100% { transform: scale(0.8); opacity: 0.8; }
+}
+
+/* Shockwave expansion for final impact */
+@keyframes shockwave {
+  0% { transform: scale(0); opacity: 1; border-width: 4px; }
+  60% { opacity: 0.6; }
+  100% { transform: scale(6); opacity: 0; border-width: 1px; }
+}
+
+/* Impact corridor alert chip */
+@keyframes corridorAlert {
+  0%, 100% { opacity: 1; box-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
+  50% { opacity: 0.85; box-shadow: 0 0 25px rgba(239, 68, 68, 0.6); }
+}
+
+/* CRT scanline overlay for 2D map */
+.crt-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 2px,
+    rgba(6, 182, 212, 0.015) 2px,
+    rgba(6, 182, 212, 0.015) 4px
+  );
+  pointer-events: none;
+  z-index: 15;
+}
+
+/* TLE monospace font */
+.font-tle {
+  font-family: 'Share Tech Mono', 'JetBrains Mono', monospace;
+  letter-spacing: 0.05em;
+}
+
+/* Impact blinking marker */
+.impact-blink {
+  animation: impactPulse 1.5s ease-in-out infinite;
+}
+
+/* Shockwave ring (used on final impact) */
+.shockwave-ring {
+  position: absolute;
+  border: 3px solid #ef4444;
+  border-radius: 50%;
+  animation: shockwave 1.5s ease-out forwards;
+  pointer-events: none;
+}
+
+/* Corridor detection chip */
+.corridor-chip {
+  animation: corridorAlert 2s ease-in-out infinite;
+}
+
+/* Countdown timer glow */
+.countdown-cell {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(6, 182, 212, 0.2);
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  text-align: center;
+  min-width: 60px;
+}
+.countdown-cell .value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #06b6d4;
+  text-shadow: 0 0 12px rgba(6, 182, 212, 0.5);
+}
+.countdown-cell .label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 2px;
+}
+
+/* Prediction mode toggle */
+.prediction-toggle {
+  background: rgba(2, 6, 23, 0.6);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(6, 182, 212, 0.15);
+  border-radius: 1rem;
+  overflow: hidden;
+}
+.prediction-toggle button {
+  padding: 0.5rem 1.25rem;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.4);
+  background: transparent;
+}
+.prediction-toggle button.active {
+  color: #06b6d4;
+  background: rgba(6, 182, 212, 0.15);
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.2);
+}
+
+/* Filter chip button */
+.filter-chip {
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border: 1px solid;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Orbitron', sans-serif;
+}
+.filter-chip:hover {
+  transform: scale(1.05);
+}
+.filter-chip.chip-red {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.1);
+}
+.filter-chip.chip-red.active {
+  background: rgba(239, 68, 68, 0.25);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+}
+.filter-chip.chip-yellow {
+  color: #eab308;
+  border-color: rgba(234, 179, 8, 0.4);
+  background: rgba(234, 179, 8, 0.1);
+}
+.filter-chip.chip-yellow.active {
+  background: rgba(234, 179, 8, 0.25);
+  box-shadow: 0 0 10px rgba(234, 179, 8, 0.3);
+}
+.filter-chip.chip-blue {
+  color: #3b82f6;
+  border-color: rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.1);
+}
+.filter-chip.chip-blue.active {
+  background: rgba(59, 130, 246, 0.25);
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
 }

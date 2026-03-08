@@ -153,7 +153,10 @@ const UserProfile = ({ setActiveTab }) => {
             <User size={22} className="text-cyan-400" />
           </div>
           <div>
-            <h2 className="text-xl font-black text-white uppercase italic tracking-tighter">
+            <h2
+              className="text-xl font-black text-white uppercase italic tracking-tighter"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
               Mission Personnel
             </h2>
             <p className="text-[9px] text-slate-500 font-mono uppercase tracking-widest">
@@ -167,7 +170,7 @@ const UserProfile = ({ setActiveTab }) => {
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pt-2">
         <div className="max-w-4xl mx-auto">
           {/* Profile Card */}
-          <div className="bg-slate-900/40 border border-white/10 rounded-2xl backdrop-blur-md p-8 mb-5">
+          <div className="glass-card p-8 mb-5">
             <div className="flex flex-col md:flex-row gap-8 items-start">
               {/* Avatar */}
               <div className="relative group">
@@ -215,9 +218,13 @@ const UserProfile = ({ setActiveTab }) => {
                           setEditData((p) => ({ ...p, name: e.target.value }))
                         }
                         className="text-2xl font-black text-white bg-transparent border-b-2 border-cyan-500/50 focus:outline-none focus:border-cyan-400 pb-1 w-full uppercase italic tracking-tighter"
+                        style={{ fontFamily: "var(--font-display)" }}
                       />
                     ) : (
-                      <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter">
+                      <h3
+                        className="text-2xl font-black text-white uppercase italic tracking-tighter"
+                        style={{ fontFamily: "var(--font-display)" }}
+                      >
                         {profileData.name}
                       </h3>
                     )}
@@ -336,7 +343,7 @@ const UserProfile = ({ setActiveTab }) => {
 
           {/* Report Status Summary Cards with Icons */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
-            <div className="bg-slate-900/40 border border-white/10 rounded-2xl backdrop-blur-md p-5 text-center">
+            <div className="glass-card p-5 text-center">
               <FileText
                 size={20}
                 className="text-cyan-400 mx-auto mb-2 opacity-50"
@@ -348,7 +355,7 @@ const UserProfile = ({ setActiveTab }) => {
                 Total Reports
               </p>
             </div>
-            <div className="bg-slate-900/40 border border-white/10 rounded-2xl backdrop-blur-md p-5 text-center">
+            <div className="glass-card p-5 text-center">
               <CheckCircle
                 size={20}
                 className="text-green-400 mx-auto mb-2 opacity-50"
@@ -360,7 +367,7 @@ const UserProfile = ({ setActiveTab }) => {
                 ✅ Approved
               </p>
             </div>
-            <div className="bg-slate-900/40 border border-white/10 rounded-2xl backdrop-blur-md p-5 text-center">
+            <div className="glass-card p-5 text-center">
               <Clock
                 size={20}
                 className="text-yellow-400 mx-auto mb-2 opacity-50"
@@ -372,7 +379,7 @@ const UserProfile = ({ setActiveTab }) => {
                 🕒 Pending
               </p>
             </div>
-            <div className="bg-slate-900/40 border border-white/10 rounded-2xl backdrop-blur-md p-5 text-center">
+            <div className="glass-card p-5 text-center">
               <XCircle
                 size={20}
                 className="text-red-400 mx-auto mb-2 opacity-50"
@@ -387,7 +394,7 @@ const UserProfile = ({ setActiveTab }) => {
           </div>
 
           {/* Recent Reports with status icons */}
-          <div className="bg-slate-900/40 border border-white/10 rounded-2xl backdrop-blur-md p-6">
+          <div className="glass-card p-6">
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2">
                 <FileText size={16} className="text-cyan-400" />

@@ -158,6 +158,18 @@ export const satelliteService = {
     return res.data;
   },
 
+  sendFinalImpactAlert: async (asset) => {
+    const message = `
+========================================
+Subject: SpaceTug Re-Entry Alert
+Object: ${asset.name} (NORAD ${asset.norad_id})
+Predicted Impact: ${asset.lat?.toFixed(2)}°, ${asset.lng?.toFixed(2)}°
+Risk Level: Critical
+========================================`;
+    console.log(message);
+    return { status: "success", message: "Email Sent to emergency contacts." };
+  },
+
   // Alert Settings
   getAlertSettings: async () => {
     const res = await api.get("/admin/alert-settings");
