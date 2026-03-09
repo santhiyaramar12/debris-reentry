@@ -10,23 +10,24 @@ const toXY = (lat, lng, W, H) => ({
   y: ((90 - lat) / 180) * H,
 });
 
-// Build SVG polyline segments, splitting at antimeridian wrap
-// Returns array of segments; each segment is continuous [x,y] pairs
+// Build SVG polyline segments, splitting at antimeridian.
+// A genuine antimeridian crossing appears as |Δlng| > 180°.
+// Values ≤ 180 are valid orbital arcs and must NOT be split.
 const buildSegments = (track, W, H) => {
   if (!track?.length) return [];
   const segs = [];
   let cur = [];
-  let prevX = null;
-  for (let i = 0; i < track.length; i++) {
-    const pt = track[i];
-    const { x, y } = toXY(pt[1], pt[0], W, H);
-    if (prevX !== null && Math.abs(x - prevX) > W * 0.35) {
-      // Antimeridian wrap: close current segment and start new
+  let prevLng = null;
+  for (const pt of track) {
+    const lng = pt[0];
+    const lat = pt[1];
+    const { x, y } = toXY(lat, lng, W, H);
+    if (prevLng !== null && Math.abs(lng - prevLng) > 180) {
       if (cur.length > 1) segs.push(cur);
       cur = [];
     }
     cur.push([x, y]);
-    prevX = x;
+    prevLng = lng;
   }
   if (cur.length > 1) segs.push(cur);
   return segs;
@@ -248,7 +249,7 @@ export const TacticalMap2D = memo(
     multiPassTracks = [],
     sliderDays = 0,
     livePosition,
-    predictionMode = "15d",
+    predictionMode = "5d",
     trajectoryColor,
   }) => {
     const containerRef = useRef(null);
@@ -269,10 +270,10 @@ export const TacticalMap2D = memo(
     const { W, H } = size;
     const trajColor = trajectoryColor || "#00ff88";
 
-    // Trajectory drawn up to slider position only
+    // ── Trajectory drawn up to slider position only
     const trajSliced = useMemo(() => {
       if (!groundTrack?.length) return [];
-      const max = predictionMode === "6h" ? 0.25 : 15;
+      const max = predictionMode === "6h" ? 0.25 : 5;
       const ratio = Math.min(sliderDays / Math.max(max, 0.001), 1);
       const n = Math.max(2, Math.floor(groundTrack.length * ratio));
       return groundTrack.slice(0, n);
@@ -283,7 +284,39 @@ export const TacticalMap2D = memo(
       [trajSliced, W, H],
     );
 
-    // ── MAX 2 background orbit pass lines — clean sinusoidal curves ──
+    // ── 5D: 4 color-banded orbit lines (day ranges: 0-1 red, 1-2 orange,
+    //        2-4 yellow, 4-5 green). Each band is drawn as its own polyline
+    //        so the map shows exactly 3-4 lines maximum, each a different
+    //        color to indicate prediction day range. No extra pass lines.
+    // ── 6H: max 2 dim background pass lines only.
+    const dayBands = useMemo(() => {
+      if (predictionMode !== "5d" || !groundTrack?.length) return [];
+      const total = groundTrack.length;
+      // 4 bands: [0,1d], [1d,2d], [2d,4d], [4d,5d]
+      const BANDS = [
+        { from: 0, to: 1, color: "#ef4444" }, // red    — day 0→1
+        { from: 1, to: 2, color: "#f97316" }, // orange — day 1→2
+        { from: 2, to: 4, color: "#eab308" }, // yellow — day 2→4
+        { from: 4, to: 5, color: "#00ff88" }, // green  — day 4→5
+      ];
+      const max = 5;
+      const sliderRatio = Math.min(sliderDays / max, 1);
+      const visibleN = Math.max(2, Math.floor(total * sliderRatio));
+
+      return BANDS.map(({ from, to, color }) => {
+        const iFrom = Math.floor((from / max) * (total - 1));
+        const iTo = Math.min(
+          Math.floor((to / max) * (total - 1)),
+          visibleN - 1,
+        );
+        if (iTo <= iFrom) return null; // band not yet reached by slider
+        const slice = groundTrack.slice(iFrom, iTo + 1);
+        if (slice.length < 2) return null;
+        return { color, segs: buildSegments(slice, W, H) };
+      }).filter(Boolean);
+    }, [groundTrack, sliderDays, predictionMode, W, H]);
+
+    // ── MAX 2 background orbit pass lines — 6H mode only ──
     const passSegs = useMemo(
       () =>
         multiPassTracks.slice(0, 2).map((pass) => buildSegments(pass, W, H)),
@@ -325,7 +358,7 @@ export const TacticalMap2D = memo(
     // ── Satellite position interpolated on track (follows slider) ───────────
     const satPx = useMemo(() => {
       if (!selectedSat || !groundTrack?.length) return null;
-      const max = predictionMode === "6h" ? 0.25 : 15;
+      const max = predictionMode === "6h" ? 0.25 : 5;
       const ratio = Math.min(sliderDays / Math.max(max, 0.001), 1);
       const pos = interpolateOnTrack(groundTrack, ratio);
       if (!pos) return null;
@@ -334,7 +367,6 @@ export const TacticalMap2D = memo(
 
     const satColor =
       Number(selectedSat?.altitude) < 150 ? "#ef4444" : "#00ff88";
-    const passColors = ["#06b6d4", "#8b5cf6"];
 
     return (
       <div
@@ -441,46 +473,76 @@ export const TacticalMap2D = memo(
             />
           ))}
 
-          {/* ── Max 2 background orbit lines — clean, dim, seamless ── */}
-          {passSegs.map((segs, pi) =>
-            segs.map((seg, si) => (
-              <polyline
-                key={`p${pi}-${si}`}
-                points={ptsStr(seg)}
-                fill="none"
-                stroke={passColors[pi % passColors.length]}
-                strokeWidth="1.2"
-                opacity="0.20"
-                strokeLinejoin="round"
-                strokeLinecap="round"
-              />
-            )),
-          )}
+          {/* ── Background orbit pass lines — 6H mode only ──
+               5D uses color-banded day ranges instead; no pass lines */}
+          {predictionMode === "6h" &&
+            passSegs.map((segs, pi) =>
+              segs.map((seg, si) => (
+                <polyline
+                  key={`p${pi}-${si}`}
+                  points={ptsStr(seg)}
+                  fill="none"
+                  stroke={trajColor}
+                  strokeWidth="1.1"
+                  opacity="0.20"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+              )),
+            )}
 
-          {/* ── Main trajectory drawn to slider position — seamless continuous line ── */}
-          {trajSegs.map((seg, i) => (
-            <g key={`tr${i}`}>
-              <polyline
-                points={ptsStr(seg)}
-                fill="none"
-                stroke={trajColor}
-                strokeWidth="5"
-                opacity="0.07"
-                filter="url(#trajGlow)"
-                strokeLinejoin="round"
-                strokeLinecap="round"
-              />
-              <polyline
-                points={ptsStr(seg)}
-                fill="none"
-                stroke={trajColor}
-                strokeWidth="2"
-                opacity="0.95"
-                strokeLinejoin="round"
-                strokeLinecap="round"
-              />
-            </g>
-          ))}
+          {/* ── 6H: single-color main trajectory drawn to slider position ── */}
+          {predictionMode === "6h" &&
+            trajSegs.map((seg, i) => (
+              <g key={`tr${i}`}>
+                <polyline
+                  points={ptsStr(seg)}
+                  fill="none"
+                  stroke={trajColor}
+                  strokeWidth="4"
+                  opacity="0.08"
+                  filter="url(#trajGlow)"
+                />
+                <polyline
+                  points={ptsStr(seg)}
+                  fill="none"
+                  stroke={trajColor}
+                  strokeWidth="1.5"
+                  opacity="0.92"
+                />
+              </g>
+            ))}
+
+          {/* ── 5D: 4 color-banded day-range orbit lines (max 4 lines) ──
+               Red=day0-1 | Orange=day1-2 | Yellow=day2-4 | Green=day4-5
+               Each is a distinct color; together they cover the full prediction
+               window clearly without excess lines. */}
+          {predictionMode === "5d" &&
+            dayBands.map((band, bi) =>
+              band.segs.map((seg, si) => (
+                <g key={`db${bi}-${si}`}>
+                  {/* glow halo */}
+                  <polyline
+                    points={ptsStr(seg)}
+                    fill="none"
+                    stroke={band.color}
+                    strokeWidth="5"
+                    opacity="0.07"
+                    filter="url(#trajGlow)"
+                  />
+                  {/* main line */}
+                  <polyline
+                    points={ptsStr(seg)}
+                    fill="none"
+                    stroke={band.color}
+                    strokeWidth="1.6"
+                    opacity="0.90"
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                  />
+                </g>
+              )),
+            )}
 
           {/* ── Impact arc dashed lines ── */}
           {impactArcs.map((arc, i) => (
@@ -507,57 +569,14 @@ export const TacticalMap2D = memo(
             />
           ))}
 
-          {/* ── Satellite — moves along track as slider moves, smooth CSS transition ── */}
+          {/* ── Satellite — moves along track as slider moves ── */}
           {selectedSat && satPx && (
-            <g
-              style={{
-                transform: `translate(${satPx.x}px, ${satPx.y}px)`,
-                transition: "transform 0.35s linear",
-              }}
-            >
-              {/* glow ring */}
-              <circle r={11} fill={satColor + "15"} />
-              <circle
-                r={7}
-                fill="none"
-                stroke={satColor}
-                strokeWidth="1"
-                opacity="0.7"
-              />
-              <circle
-                r={3.5}
-                fill={satColor}
-                style={{ filter: `drop-shadow(0 0 5px ${satColor})` }}
-              />
-              {/* solar panels */}
-              <rect
-                x={-18}
-                y={-2}
-                width={7}
-                height={4}
-                fill={satColor}
-                opacity="0.50"
-                rx="1"
-              />
-              <rect
-                x={11}
-                y={-2}
-                width={7}
-                height={4}
-                fill={satColor}
-                opacity="0.50"
-                rx="1"
-              />
-              <line
-                x1={0}
-                y1={-8}
-                x2={0}
-                y2={-14}
-                stroke={satColor}
-                strokeWidth="1.2"
-              />
-              <circle cy={-16} r={2} fill={satColor} opacity="0.7" />
-            </g>
+            <SatMarker
+              key={`sat-${Math.round(sliderDays * 100)}`}
+              x={satPx.x}
+              y={satPx.y}
+              color={satColor}
+            />
           )}
 
           <rect
@@ -593,7 +612,7 @@ export const TacticalMap2D = memo(
             }}
           >
             {(() => {
-              const max = predictionMode === "6h" ? 0.25 : 15;
+              const max = predictionMode === "6h" ? 0.25 : 5;
               const pos = interpolateOnTrack(
                 groundTrack,
                 Math.min(sliderDays / Math.max(max, 0.001), 1),

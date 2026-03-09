@@ -14,9 +14,6 @@ import {
   Target,
   Clock,
   Search,
-  SlidersHorizontal,
-  Play,
-  Pause,
 } from "lucide-react";
 import { DraggablePanel } from "./DraggablePanel";
 
@@ -257,16 +254,16 @@ const getOE = (sat, k) => {
 // Colour by altitude risk
 const altColor = (a) =>
   Number(a) < 100 ? "#ef4444" : Number(a) < 125 ? "#eab308" : "#00ff88";
-// Colour by days-left risk per spec:
-// 0–3 days → Critical → Red
-// 3–6 days → High Risk → Yellow
-// 7–15 days → Monitoring → Green
-// >15 days → Stable → slate
+// Colour by days-left risk:
+// 0–5 days  → Critical  → Red
+// 6–10 days → Warning   → Yellow  (within 10 days)
+// 11–15 days → Monitor  → Green   (within 15 days)
+// >15 days  → Stable    → slate
 const daysColor = (d) => {
   const n = Number(d ?? 999);
-  return n <= 3
+  return n <= 5
     ? "#ef4444"
-    : n <= 6
+    : n <= 10
       ? "#eab308"
       : n <= 15
         ? "#00ff88"
@@ -289,17 +286,6 @@ export const MissionConsole = ({
   onSelectSat,
   impactSites,
   livePosition,
-  sliderDays = 0,
-  setSliderDays,
-  maxSlider = 15,
-  sliderStep = 0.1,
-  sliderBg,
-  sliderLabel = "",
-  predictionMode = "15d",
-  setPredictionMode,
-  isPlaying = false,
-  onPlayPause,
-  trajectoryColor = "#00ff88",
 }) => {
   const [panels, setPanels] = useState({
     debrisList: true,
@@ -309,7 +295,6 @@ export const MissionConsole = ({
     orbital: false,
     impact: true,
     timeWindow: false,
-    trajectory: false,
   });
 
   // Filter: null=ALL, else {min,max} range for days_left
@@ -322,13 +307,19 @@ export const MissionConsole = ({
     [],
   );
 
-  // Filtered list: range filter uses {min,max} from spec
+  // Filtered list: cumulative range filter
+  // null/missing/NaN days_left = excluded from ≤N filters (can't confirm re-entry time)
   const filteredAlerts = useMemo(() => {
     let list = [...(alerts || [])];
     if (daysFilter !== null) {
       list = list.filter((s) => {
-        const d = Number(s.days_left ?? 999);
-        return d >= daysFilter.min && d <= daysFilter.max;
+        const raw = s.days_left;
+        if (raw === null || raw === undefined || raw === "") return false;
+        const d = Number(raw);
+        if (isNaN(d)) return false;
+        // days_left=0 or negative → imminent, show in ALL filters
+        if (d <= 0) return true;
+        return d <= daysFilter.max;
       });
     }
     if (search.trim()) {
@@ -410,11 +401,6 @@ export const MissionConsole = ({
           { k: "orbital", I: Settings, tip: "Orbital Elements" },
           { k: "impact", I: Target, tip: "Impact Corridor" },
           { k: "timeWindow", I: Clock, tip: "Re-Entry Window" },
-          {
-            k: "trajectory",
-            I: SlidersHorizontal,
-            tip: "Trajectory Prediction",
-          },
         ].map(({ k, I, tip }) => (
           <div key={k} title={tip} style={iconBtn(k)} onClick={() => toggle(k)}>
             <I size={18} />
@@ -433,7 +419,7 @@ export const MissionConsole = ({
           defaultPos={{ x: 74, y: 80 }}
           accentColor="#06b6d4"
         >
-          {/* Filter chips: ALL / 5 Days(0-3d) / 10 Days(3-6d) / 15 Days(7-15d) per spec */}
+          {/* Filter chips: ALL / ≤5d (red) / ≤10d (yellow) / ≤15d (green) */}
           <div
             style={{
               display: "flex",
@@ -444,9 +430,9 @@ export const MissionConsole = ({
           >
             {[
               { label: "ALL", val: null, c: "#94a3b8" },
-              { label: "5 Days", val: { min: 0, max: 5 }, c: "#ef4444" },
-              { label: "10 Days", val: { min: 0, max: 10 }, c: "#eab308" },
-              { label: "15 Days", val: { min: 0, max: 15 }, c: "#00ff88" },
+              { label: "≤5 Days", val: { min: 0, max: 5 }, c: "#ef4444" },
+              { label: "≤10 Days", val: { min: 0, max: 10 }, c: "#eab308" },
+              { label: "≤15 Days", val: { min: 0, max: 15 }, c: "#00ff88" },
             ].map(({ label, val, c }) => {
               const on = JSON.stringify(daysFilter) === JSON.stringify(val);
               return (
@@ -1023,109 +1009,132 @@ export const MissionConsole = ({
           accentColor="#f97316"
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div>
-              <div
-                style={{
-                  fontFamily: "'Orbitron',sans-serif",
-                  fontSize: 8,
-                  color: "#f97316",
-                  textTransform: "uppercase",
-                  letterSpacing: ".2em",
-                  textAlign: "center",
-                  marginBottom: 10,
-                }}
-              >
-                Countdown to Re-Entry
-              </div>
-              {/* FIX: Countdown component uses selectedSat.days_left and ticks every 1 s */}
-              <Countdown
-                daysLeft={selectedSat.days_left}
-                altitude={selectedSat.altitude}
-              />
-            </div>
-
-            {/* ±12 h window */}
-            <div
-              style={{
-                background: "rgba(0,0,0,.5)",
-                border: "1px solid rgba(249,115,22,.2)",
-                borderRadius: 10,
-                padding: "10px 12px",
-              }}
-            >
-              <div style={{ ...lbl, color: "#f97316", marginBottom: 6 }}>
-                Re-Entry Window ±12h
-              </div>
-              <div
-                style={{
-                  fontFamily: "'JetBrains Mono',monospace",
-                  fontSize: 9,
-                  color: "#fb923c",
-                  lineHeight: 1.9,
-                }}
-              >
-                {(() => {
-                  const dl = Number(selectedSat.days_left) || 0;
-                  const now = Date.now();
-                  const st = new Date(now + Math.max(0, dl - 0.5) * 86_400_000);
-                  const en = new Date(now + (dl + 0.5) * 86_400_000);
-                  return (
-                    <>
+            {(() => {
+              // Resolve effective days-to-reentry
+              let dl = Number(selectedSat.days_left);
+              let altBased = false;
+              if (!dl || isNaN(dl) || dl <= 0) {
+                altBased = true;
+                const alt = Number(selectedSat.altitude || liveAlt || 200);
+                if (alt < 80)
+                  dl = 0.01; // ~15 min
+                else if (alt < 100)
+                  dl = 0.042; // ~1 hr
+                else if (alt < 120)
+                  dl = 0.208; // ~5 hrs
+                else if (alt < 150)
+                  dl = 0.5; // ~12 hrs
+                else if (alt < 200)
+                  dl = 1.0; // ~1 day
+                else dl = 2.0;
+              }
+              const now = Date.now();
+              // Window = ±50 % of dl, but earliest never in the past
+              const halfWin = dl * 0.5;
+              const earliest = new Date(
+                now + Math.max(0, dl - halfWin) * 86_400_000,
+              );
+              const latest = new Date(now + (dl + halfWin) * 86_400_000);
+              const nominal = new Date(now + dl * 86_400_000);
+              return (
+                <>
+                  {/* ±50% window */}
+                  <div
+                    style={{
+                      background: "rgba(0,0,0,.5)",
+                      border: "1px solid rgba(249,115,22,.2)",
+                      borderRadius: 10,
+                      padding: "10px 12px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        marginBottom: 6,
+                      }}
+                    >
+                      <span style={{ ...lbl, color: "#f97316" }}>
+                        Re-Entry Window
+                      </span>
+                      {altBased && (
+                        <span
+                          style={{
+                            fontFamily: "'JetBrains Mono',monospace",
+                            fontSize: 7,
+                            color: "#ef4444",
+                            background: "rgba(239,68,68,.12)",
+                            border: "1px solid rgba(239,68,68,.3)",
+                            borderRadius: 4,
+                            padding: "1px 5px",
+                            letterSpacing: ".05em",
+                          }}
+                        >
+                          ALT-EST
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "'JetBrains Mono',monospace",
+                        fontSize: 9,
+                        color: "#fb923c",
+                        lineHeight: 1.9,
+                      }}
+                    >
                       <div>
-                        From: {st.toISOString().slice(0, 16).replace("T", " ")}{" "}
+                        Earliest:{" "}
+                        {earliest.toISOString().slice(0, 16).replace("T", " ")}{" "}
                         UTC
                       </div>
                       <div>
-                        To: {en.toISOString().slice(0, 16).replace("T", " ")}{" "}
+                        Latest:{" "}
+                        {latest.toISOString().slice(0, 16).replace("T", " ")}{" "}
                         UTC
                       </div>
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
+                    </div>
+                  </div>
 
-            {/* Estimated re-entry */}
-            <div
-              style={{
-                background: "rgba(0,0,0,.5)",
-                border: "1px solid rgba(249,115,22,.2)",
-                borderRadius: 10,
-                padding: "10px 12px",
-                textAlign: "center",
-              }}
-            >
-              <div style={{ ...lbl, color: "#f97316", marginBottom: 6 }}>
-                Estimated Re-Entry
-              </div>
-              <div
-                style={{
-                  fontFamily: "'JetBrains Mono',monospace",
-                  fontSize: 11,
-                  color: "#fff",
-                  fontWeight: 800,
-                }}
-              >
-                {new Date(
-                  Date.now() +
-                    (Number(selectedSat.days_left) || 0) * 86_400_000,
-                )
-                  .toISOString()
-                  .slice(0, 16)
-                  .replace("T", " ")}{" "}
-                UTC
-              </div>
-            </div>
+                  {/* Nominal re-entry */}
+                  <div
+                    style={{
+                      background: "rgba(0,0,0,.5)",
+                      border: "1px solid rgba(249,115,22,.2)",
+                      borderRadius: 10,
+                      padding: "10px 12px",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div style={{ ...lbl, color: "#f97316", marginBottom: 6 }}>
+                      {altBased
+                        ? "Est. Re-Entry (altitude-based)"
+                        : "Estimated Re-Entry"}
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "'JetBrains Mono',monospace",
+                        fontSize: 11,
+                        color: altBased ? "#ef4444" : "#fff",
+                        fontWeight: 800,
+                      }}
+                    >
+                      {nominal.toISOString().slice(0, 16).replace("T", " ")} UTC
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
 
-            {/* Risk pill — spec thresholds: 0-3 critical, 3-6 high risk, 7-15 monitoring */}
+            {/* Risk pill — 0-5d critical, 6-10d warning, 11-15d monitoring, >15d stable */}
             {(() => {
               const d = Number(selectedSat.days_left || 0);
               const c = daysColor(d);
               const rl =
-                d <= 3
+                d <= 5
                   ? "CRITICAL"
-                  : d <= 6
-                    ? "HIGH RISK"
+                  : d <= 10
+                    ? "WARNING"
                     : d <= 15
                       ? "MONITORING"
                       : "STABLE";
@@ -1167,177 +1176,6 @@ export const MissionConsole = ({
                 </div>
               );
             })()}
-          </div>
-        </DraggablePanel>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════════════
-          TRAJECTORY PREDICTION — moved from bottom bar to taskbar panel
-          Map is fully visible. User can drag/resize this panel anywhere.
-      ══════════════════════════════════════════════════════════════════ */}
-      {selectedSat && panels.trajectory && (
-        <DraggablePanel
-          title="Trajectory Prediction"
-          icon={SlidersHorizontal}
-          onClose={() => toggle("trajectory")}
-          defaultPos={{ x: 74, y: 700 }}
-          accentColor={trajectoryColor}
-        >
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {/* Mode selector + time label */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div
-                style={{
-                  display: "flex",
-                  border: "1px solid rgba(255,255,255,.1)",
-                  borderRadius: 7,
-                  overflow: "hidden",
-                  flexShrink: 0,
-                }}
-              >
-                {[
-                  ["6h", "6 HRS"],
-                  ["15d", "15 DAYS"],
-                ].map(([k, lbl]) => (
-                  <button
-                    key={k}
-                    onClick={() => setPredictionMode && setPredictionMode(k)}
-                    style={{
-                      padding: "5px 14px",
-                      fontSize: 8,
-                      fontFamily: "'Orbitron',sans-serif",
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      letterSpacing: ".08em",
-                      cursor: "pointer",
-                      border: "none",
-                      background:
-                        predictionMode === k
-                          ? "rgba(6,182,212,.22)"
-                          : "transparent",
-                      color:
-                        predictionMode === k
-                          ? "#67e8f9"
-                          : "rgba(148,163,184,.45)",
-                      transition: "all .18s",
-                    }}
-                  >
-                    {lbl}
-                  </button>
-                ))}
-              </div>
-              <div style={{ flex: 1 }} />
-              <span
-                style={{
-                  fontFamily: "'JetBrains Mono',monospace",
-                  fontSize: 11,
-                  fontWeight: 800,
-                  color: trajectoryColor,
-                }}
-              >
-                {sliderLabel}
-              </span>
-            </div>
-
-            {/* Play / Pause button */}
-            <button
-              onClick={onPlayPause}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                padding: "7px 0",
-                borderRadius: 8,
-                border: `1px solid ${trajectoryColor}44`,
-                background: trajectoryColor + "14",
-                color: trajectoryColor,
-                cursor: "pointer",
-                fontFamily: "'Orbitron',sans-serif",
-                fontSize: 9,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: ".1em",
-                width: "100%",
-              }}
-            >
-              {isPlaying ? <Pause size={13} /> : <Play size={13} />}
-              {isPlaying ? "Pause Simulation" : "Play Simulation"}
-            </button>
-
-            {/* Slider */}
-            <div>
-              <style>{`
-                .traj-slider-mc{-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;outline:none;cursor:pointer;width:100%}
-                .traj-slider-mc::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid #06b6d4;cursor:pointer;box-shadow:0 0 10px rgba(6,182,212,.6)}
-              `}</style>
-              <input
-                type="range"
-                className="traj-slider-mc"
-                min={0}
-                max={maxSlider}
-                step={sliderStep}
-                value={sliderDays}
-                onChange={(e) =>
-                  setSliderDays && setSliderDays(Number(e.target.value))
-                }
-                style={{
-                  background:
-                    sliderBg ||
-                    "linear-gradient(90deg,#ef4444 0%,#eab308 20%,#00ff88 40%)",
-                  width: "100%",
-                  display: "block",
-                }}
-              />
-              {/* Legend */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginTop: 6,
-                }}
-              >
-                {[
-                  ["#ef4444", "0–3d · CRITICAL"],
-                  ["#eab308", "4–6d · HIGH"],
-                  ["#00ff88", "7–15d · MONITOR"],
-                ].map(([c, t]) => (
-                  <span
-                    key={t}
-                    style={{
-                      fontFamily: "'JetBrains Mono',monospace",
-                      fontSize: 7,
-                      color: c,
-                      textTransform: "uppercase",
-                      letterSpacing: ".06em",
-                    }}
-                  >
-                    {t}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Progress bar */}
-            <div
-              style={{
-                height: 3,
-                borderRadius: 2,
-                background: "rgba(255,255,255,.06)",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  height: "100%",
-                  width: `${Math.min((sliderDays / Math.max(maxSlider, 0.001)) * 100, 100)}%`,
-                  background: trajectoryColor,
-                  borderRadius: 2,
-                  transition: "width .4s linear",
-                  boxShadow: `0 0 8px ${trajectoryColor}88`,
-                }}
-              />
-            </div>
           </div>
         </DraggablePanel>
       )}

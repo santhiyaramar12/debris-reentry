@@ -50,7 +50,7 @@ export const OrbitalGlobe3D = ({
   livePosition,
   predictionMode,
   trajectoryColor,
-  globeCommandRef,
+  globeCommandRef, // ref passed from CrisisAlerts for zoom commands
 }) => {
   const globeRef = useRef();
   const containerRef = useRef();
@@ -137,34 +137,28 @@ export const OrbitalGlobe3D = ({
   }, [selectedSat?.norad_id]);
 
   // ── Follow satellite position along track as slider moves ───────────────
-  // Camera gently follows satellite. Only updates when satellite moves 8°+
-  // so camera doesn't thrash when animation is running. Transition=1500ms.
+  // Uses interpolated position on groundTrack (not live SGP4) so it
+  // stays exactly on the visible path as user drags the slider.
   const prevTrackPos = useRef(null);
-  const lastCameraUpdate = useRef(0);
   useEffect(() => {
     if (!selectedSat || !groundTrack?.length || !globeRef.current) return;
-    const now = Date.now();
-    // Throttle camera moves to max once every 1.5s
-    if (now - lastCameraUpdate.current < 1500) return;
-    const max = predictionMode === "6h" ? 0.25 : 15;
+    const max = predictionMode === "6h" ? 0.25 : 5;
     const ratio = max > 0 ? Math.min(sliderDays / max, 1) : 1;
     const pos = interpolateOnTrack(groundTrack, ratio);
     if (!pos) return;
     const prev = prevTrackPos.current;
-    // Only move camera if satellite moved 8°+ from last camera position
     if (
       !prev ||
-      Math.abs(pos.lat - prev.lat) > 8 ||
-      Math.abs(pos.lng - prev.lng) > 8
+      Math.abs(pos.lat - prev.lat) > 3 ||
+      Math.abs(pos.lng - prev.lng) > 3
     ) {
       globeRef.current.pointOfView(
-        { lat: pos.lat, lng: pos.lng, altitude: 1.5 },
-        1500, // smooth 1.5s transition
+        { lat: pos.lat, lng: pos.lng, altitude: 1.4 },
+        800,
       );
       prevTrackPos.current = pos;
-      lastCameraUpdate.current = now;
     }
-  }, [sliderDays, selectedSat?.norad_id, groundTrack, predictionMode]);
+  }, [sliderDays, selectedSat?.norad_id, groundTrack]);
 
   // ── Listen for zoom commands from CrisisAlerts (impact site zoom) ───────
   useEffect(() => {
@@ -190,7 +184,7 @@ export const OrbitalGlobe3D = ({
   // Shockwave at PRIMARY on slider end
   const prevSlider = useRef(0);
   useEffect(() => {
-    const max = predictionMode === "6h" ? 0.25 : 15;
+    const max = predictionMode === "6h" ? 0.25 : 5;
     if (
       selectedSat &&
       sliderDays >= max * 0.99 &&
@@ -230,7 +224,7 @@ export const OrbitalGlobe3D = ({
       });
     }
     if (selectedSat) {
-      const max = predictionMode === "6h" ? 0.25 : 15;
+      const max = predictionMode === "6h" ? 0.25 : 5;
       const ratio = max > 0 ? Math.min(sliderDays / max, 1) : 1;
       const trackPos = groundTrack?.length
         ? interpolateOnTrack(groundTrack, ratio)
@@ -292,88 +286,106 @@ export const OrbitalGlobe3D = ({
     return rings;
   }, [selectedSat, impactSites, showShock]);
 
-  // ── STABLE paths — impact arcs + pass orbit lines ────────────────────────
-  // These never change when slider moves → memoized separately to prevent
-  // Three.js path rebuild flickering/cuts during animation.
-  const stablePaths = useMemo(() => {
-    if (!selectedSat || !groundTrack?.length) return [];
-    const paths = [];
+  // ── Helper: split [lng,lat] track at antimeridian → {lat,lng,alt} segments ──
+  // When a crossing is detected (|Δlng| > 180°) we interpolate the exact
+  // boundary point and append it to the closing segment AND prepend it to
+  // the opening segment — this eliminates the visible gap react-globe.gl
+  // would otherwise show between two adjacent path objects.
+  const buildGlobeSegments = (track, alt = 0.012) => {
+    if (!track?.length) return [];
+    const segs = [];
+    let cur = [];
+    for (let i = 0; i < track.length; i++) {
+      const lng = track[i][0];
+      const lat = track[i][1];
+      if (cur.length > 0) {
+        const prev = cur[cur.length - 1];
+        const dLng = lng - prev.lng;
+        if (Math.abs(dLng) > 180) {
+          // Interpolate the crossing point on the antimeridian (±180)
+          const sign = dLng > 0 ? -1 : 1; // which side prev is on
+          const boundary = sign * 180;
+          const t = (boundary - prev.lng) / dLng;
+          const crossLat = prev.lat + (lat - prev.lat) * t;
+          // Close current segment with the boundary point
+          cur.push({ lat: crossLat, lng: boundary, alt });
+          if (cur.length >= 2) segs.push(cur);
+          // Open next segment from the mirrored boundary point
+          cur = [{ lat: crossLat, lng: -boundary, alt }];
+        }
+      }
+      cur.push({ lat, lng, alt });
+    }
+    if (cur.length >= 2) segs.push(cur);
+    return segs;
+  };
 
-    // 3 arced lines → each impact site, always from full track end
+  // ── TRAJECTORY paths ──────────────────────────────────────────────────────
+  // 6H: main track + up to 2 background pass lines (dim, same color)
+  // 5D: main track ONLY — single continuous line, color encodes time range
+  // Both modes: antimeridian-split for continuous rendering
+  const pathData = useMemo(() => {
+    if (!selectedSat || !groundTrack?.length) return [];
+
+    const max = predictionMode === "6h" ? 0.25 : 5;
+    const ratio = max > 0 ? Math.min(sliderDays / max, 1) : 1;
+    const nPts = Math.max(2, Math.floor(groundTrack.length * ratio));
+    const sliced = groundTrack.slice(0, nPts);
+    const pColor = trajectoryColor || "#06b6d4";
+
+    // ── Main trajectory (both modes) ──
+    const paths = buildGlobeSegments(sliced, 0.012).map((seg) => ({
+      coords: seg,
+      color: [pColor, pColor],
+    }));
+
+    // ── Pass lines — 6H mode only ──
+    if (predictionMode === "6h" && multiPassTracks?.length) {
+      multiPassTracks.slice(0, 2).forEach((pass) => {
+        if (!pass?.length) return;
+        buildGlobeSegments(pass, 0.01).forEach((seg) => {
+          paths.push({
+            coords: seg,
+            color: [pColor + "55", pColor + "28"],
+          });
+        });
+      });
+    }
+
+    // ── Impact arcs from track end → each site ──
     if (impactSites?.length) {
       const last = groundTrack[groundTrack.length - 1];
       impactSites.forEach((site) => {
-        const coords = Array.from({ length: 32 }, (_, i) => {
-          const t = i / 31;
-          return {
-            lat: last[1] + (site.lat - last[1]) * t,
-            lng: last[0] + (site.lng - last[0]) * t,
-            alt: 0.02 + Math.sin(t * Math.PI) * 0.2,
-          };
+        const arcRaw = Array.from({ length: 40 }, (_, i) => {
+          const tt = i / 39;
+          return [
+            last[0] + (site.lng - last[0]) * tt,
+            last[1] + (site.lat - last[1]) * tt,
+          ];
         });
-        paths.push({ coords, color: [site.color + "cc", site.color + "22"] });
-      });
-    }
-
-    // Faint pass orbit lines — shows full orbit coverage
-    const passColors = ["#06b6d4", "#8b5cf6", "#f97316"];
-    if (multiPassTracks?.length) {
-      multiPassTracks.slice(0, 3).forEach((pass, pi) => {
-        if (!pass?.length) return;
-        // Split at antimeridian (lng jump > 180°)
-        let seg = [];
-        for (let i = 0; i < pass.length; i++) {
-          const pt = pass[i];
-          if (seg.length > 0 && Math.abs(pt[0] - pass[i - 1][0]) > 180) {
-            if (seg.length > 1)
-              paths.push({
-                coords: seg,
-                color: [passColors[pi % 3] + "33", passColors[pi % 3] + "11"],
-              });
-            seg = [];
-          }
-          seg.push({ lat: pt[1], lng: pt[0], alt: 0.004 });
-        }
-        if (seg.length > 1)
+        buildGlobeSegments(arcRaw, 0.012).forEach((seg) => {
+          seg.forEach((pt, idx) => {
+            const tt = idx / Math.max(seg.length - 1, 1);
+            pt.alt = 0.014 + Math.sin(tt * Math.PI) * 0.1;
+          });
           paths.push({
             coords: seg,
-            color: [passColors[pi % 3] + "33", passColors[pi % 3] + "11"],
+            color: [site.color + "bb", site.color + "30"],
           });
+        });
       });
     }
+
     return paths;
-  }, [selectedSat, groundTrack, impactSites, multiPassTracks]);
-
-  // ── ANIMATED trajectory — only sliced portion, changes with slider ────────
-  const animatedPath = useMemo(() => {
-    if (!selectedSat || !groundTrack?.length) return [];
-    const max = predictionMode === "6h" ? 0.25 : 15;
-    const ratio = max > 0 ? Math.min(sliderDays / max, 1) : 1;
-    const nPts = Math.max(2, Math.floor(groundTrack.length * ratio));
-    const pColor = trajectoryColor || "#00ff88";
-
-    // Split at antimeridian so no straight lines across the globe
-    const paths = [];
-    let seg = [];
-    const sliced = groundTrack.slice(0, nPts);
-    for (let i = 0; i < sliced.length; i++) {
-      const pt = sliced[i];
-      if (seg.length > 0 && Math.abs(pt[0] - sliced[i - 1][0]) > 180) {
-        if (seg.length > 1)
-          paths.push({ coords: seg, color: [pColor, pColor] });
-        seg = [];
-      }
-      seg.push({ lat: pt[1], lng: pt[0], alt: 0.015 });
-    }
-    if (seg.length > 1) paths.push({ coords: seg, color: [pColor, pColor] });
-    return paths;
-  }, [selectedSat, groundTrack, sliderDays, predictionMode, trajectoryColor]);
-
-  // Combined for Globe pathsData
-  const pathData = useMemo(
-    () => [...animatedPath, ...stablePaths],
-    [animatedPath, stablePaths],
-  );
+  }, [
+    selectedSat,
+    groundTrack,
+    multiPassTracks,
+    sliderDays,
+    impactSites,
+    predictionMode,
+    trajectoryColor,
+  ]);
 
   // Impact labels
   const labelsData = useMemo(() => {
@@ -433,7 +445,7 @@ export const OrbitalGlobe3D = ({
         pathPointLng="lng"
         pathPointAlt="alt"
         pathColor={(d) => d.color}
-        pathStroke={2.2}
+        pathStroke={1.2}
         pathDashLength={1}
         pathDashGap={0}
         pathDashAnimateTime={0}
